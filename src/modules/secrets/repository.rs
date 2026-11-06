@@ -17,6 +17,7 @@ pub trait SecretRepository: Send + Sync {
         encrypted_value: &str,
         iv: &str,
         auth_tag: &str,
+        source: Option<&str>,
     ) -> Result<SecretRecord, AppError>;
 
     async fn find_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Option<SecretRecord>, AppError>;
@@ -55,18 +56,25 @@ impl SecretRepository for PostgresSecretRepository {
         encrypted_value: &str,
         iv: &str,
         auth_tag: &str,
+        source: Option<&str>,
     ) -> Result<SecretRecord, AppError> {
         let dummy_uuid = Uuid::nil();
         let _pid_coalesced = project_id.unwrap_or(dummy_uuid);
         let _sid_coalesced = service_id.unwrap_or(dummy_uuid);
+        let src = source.unwrap_or("manual");
 
         let record = sqlx::query_as::<_, SecretRecord>(
             r#"
-            INSERT INTO secrets (scope_type, project_id, service_id, key, encrypted_value, iv, auth_tag)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO secrets (scope_type, project_id, service_id, key, encrypted_value, iv, auth_tag, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT (scope_type, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid), COALESCE(service_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-            DO UPDATE SET encrypted_value = EXCLUDED.encrypted_value, iv = EXCLUDED.iv, auth_tag = EXCLUDED.auth_tag, updated_at = NOW()
-            RETURNING id, scope_type, project_id, service_id, key, encrypted_value, iv, auth_tag, created_at, updated_at
+            DO UPDATE SET
+                encrypted_value = EXCLUDED.encrypted_value,
+                iv = EXCLUDED.iv,
+                auth_tag = EXCLUDED.auth_tag,
+                source = EXCLUDED.source,
+                updated_at = NOW()
+            RETURNING id, scope_type, project_id, service_id, key, encrypted_value, iv, auth_tag, source, created_at, updated_at
             "#
         )
         .bind(scope_type)
@@ -76,6 +84,7 @@ impl SecretRepository for PostgresSecretRepository {
         .bind(encrypted_value)
         .bind(iv)
         .bind(auth_tag)
+        .bind(src)
         .fetch_one(&mut **tx)
         .await
         .map_err(|e| AppError::database(format!("Failed to upsert secret: {}", e)))?;
@@ -138,7 +147,9 @@ impl SecretRepository for PostgresSecretRepository {
         project_id: Uuid,
         service_id: Uuid,
     ) -> Result<Vec<SecretRecord>, AppError> {
-        // Fetches global secrets, project secrets, and service secrets in priority order
+        // Fetches global secrets, project secrets, and service secrets in priority order.
+        // Within the same scope, 'exavault' secrets are ordered before 'manual' secrets,
+        // so that manual overrides take precedence when inserted into the resolution map.
         let records = sqlx::query_as::<_, SecretRecord>(
             r#"
             SELECT * FROM secrets
@@ -151,7 +162,13 @@ impl SecretRepository for PostgresSecretRepository {
                     WHEN 'project' THEN 2
                     WHEN 'service' THEN 3
                     ELSE 4
-                END ASC
+                END ASC,
+                CASE COALESCE(source, 'manual')
+                    WHEN 'exavault' THEN 1
+                    WHEN 'manual' THEN 2
+                    ELSE 3
+                END ASC,
+                created_at ASC
             "#
         )
         .bind(project_id)

@@ -2,6 +2,7 @@ pub mod auth;
 pub mod cache;
 pub mod crypto;
 pub mod errors;
+pub mod exavault;
 pub mod idempotency;
 pub mod logging;
 pub mod queue;

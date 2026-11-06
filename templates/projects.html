@@ -12,7 +12,9 @@
     project: {
         name: '',
         slug: '',
-        description: ''
+        description: '',
+        exavault_url: 'https://exavault.eka-dev.cloud',
+        exavault_token: ''
     },
     service: {
         name: '',
@@ -22,14 +24,22 @@
         path_filters_str: '',
         tag_prefix: '',
         default_branch: 'main',
-        pipeline_file: '.ci.yaml'
+        pipeline_file: '.ci.yaml',
+        exavault_url: 'https://exavault.eka-dev.cloud',
+        exavault_token: ''
     },
     errorMessage: '',
     isSubmitting: false,
     triggerLoading: {},
 
     openProjectModal() {
-        this.project = { name: '', slug: '', description: '' };
+        this.project = {
+            name: '',
+            slug: '',
+            description: '',
+            exavault_url: 'https://exavault.eka-dev.cloud',
+            exavault_token: ''
+        };
         this.errorMessage = '';
         this.newProjectModal = true;
     },
@@ -57,7 +67,9 @@
             const payload = {
                 name: this.project.name.trim(),
                 slug: this.project.slug.trim(),
-                description: this.project.description.trim() ? this.project.description.trim() : null
+                description: this.project.description.trim() ? this.project.description.trim() : null,
+                exavault_url: this.project.exavault_token.trim() && this.project.exavault_url.trim() ? this.project.exavault_url.trim() : null,
+                exavault_token: this.project.exavault_token.trim() ? this.project.exavault_token.trim() : null
             };
             const res = await fetch('/api/v1/projects', {
                 method: 'POST',
@@ -97,7 +109,9 @@
             path_filters_str: '',
             tag_prefix: '',
             default_branch: 'main',
-            pipeline_file: '.ci.yaml'
+            pipeline_file: '.ci.yaml',
+            exavault_url: 'https://exavault.eka-dev.cloud',
+            exavault_token: ''
         };
         this.errorMessage = '';
         this.newServiceModal = true;
@@ -127,7 +141,9 @@
                 path_filters: pathFilters,
                 tag_prefix: this.service.tag_prefix.trim() ? this.service.tag_prefix.trim() : null,
                 default_branch: this.service.default_branch.trim() || 'main',
-                pipeline_file: this.service.pipeline_file.trim() || '.ci.yaml'
+                pipeline_file: this.service.pipeline_file.trim() || '.ci.yaml',
+                exavault_url: this.service.exavault_token.trim() && this.service.exavault_url.trim() ? this.service.exavault_url.trim() : null,
+                exavault_token: this.service.exavault_token.trim() ? this.service.exavault_token.trim() : null
             };
             const res = await fetch(`/api/v1/projects/${this.activeProjectId}/services`, {
                 method: 'POST',
@@ -211,7 +227,16 @@
                     <div class="w-10 h-10 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center justify-center text-lg">📁</div>
                     <div>
                         <h2 class="text-lg font-bold text-white">{{ p.name }}</h2>
-                        <span class="text-xs font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">slug: {{ p.slug }}</span>
+                        <div class="flex items-center space-x-1.5 mt-0.5">
+                            <span class="text-xs font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">slug: {{ p.slug }}</span>
+                            {% if let Some(token) = p.exavault_token %}
+                                {% if !token.is_empty() %}
+                                <span class="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20" title="ExaVault Project Token Configured">
+                                    🔗 ExaVault
+                                </span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -245,6 +270,13 @@
                                     <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                                         {{ s.repo_type }}
                                     </span>
+                                    {% if let Some(token) = s.exavault_token %}
+                                        {% if !token.is_empty() %}
+                                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" title="ExaVault Service Token Configured">
+                                            🔗 ExaVault
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
                                     <button type="button" @click="deleteService('{{ s.id }}', '{{ s.name }}')"
                                         title="Delete service"
                                         class="text-slate-500 hover:text-rose-400 text-xs px-1">
@@ -310,8 +342,24 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Description (Optional)</label>
-                    <textarea x-model="project.description" rows="3" placeholder="Brief overview of project and purpose..."
+                    <textarea x-model="project.description" rows="2" placeholder="Brief overview of project and purpose..."
                         class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"></textarea>
+                </div>
+                <div class="pt-2 border-t border-[#21262d] space-y-3">
+                    <label class="block text-xs font-semibold text-cyan-400">
+                        🔗 ExaVault Project Secrets Integration <span class="text-[10px] font-normal text-slate-500">(Optional)</span>
+                    </label>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">ExaVault Server URL</label>
+                        <input type="url" x-model="project.exavault_url" placeholder="https://exavault.eka-dev.cloud"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">ExaVault Project Token</label>
+                        <input type="password" x-model="project.exavault_token" placeholder="exv_..."
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500">
+                        <p class="text-[11px] text-slate-500 mt-1">If configured, pipelines in this project will automatically fetch and inject ExaVault environment secrets.</p>
+                    </div>
                 </div>
                 <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#21262d]">
                     <button type="button" @click="newProjectModal = false"
@@ -406,6 +454,25 @@
                             class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
                         <p class="text-[11px] text-slate-500 mt-1">Triggers on git push tags matching prefix</p>
                     </div>
+                </div>
+
+                <div class="pt-2 border-t border-[#21262d] space-y-3">
+                    <label class="block text-xs font-semibold text-cyan-400">
+                        🔗 ExaVault Service Secrets Integration <span class="text-[10px] font-normal text-slate-500">(Optional)</span>
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">ExaVault Server URL</label>
+                            <input type="url" x-model="service.exavault_url" placeholder="https://exavault.eka-dev.cloud"
+                                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">ExaVault Service Token</label>
+                            <input type="password" x-model="service.exavault_token" placeholder="exv_..."
+                                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-500">If set, overrides project ExaVault secrets specifically for this service during pipeline execution.</p>
                 </div>
 
                 <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#21262d]">

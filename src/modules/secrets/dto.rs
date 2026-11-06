@@ -13,6 +13,7 @@ pub struct SecretRecord {
     pub encrypted_value: String,
     pub iv: String,
     pub auth_tag: String,
+    pub source: Option<String>, // 'manual' | 'exavault'
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -33,6 +34,7 @@ pub struct CreateSecretRequest {
     pub key: String,
     #[validate(length(min = 1, message = "Value cannot be empty"))]
     pub value: String,
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -42,7 +44,24 @@ pub struct SecretSummaryResponse {
     pub project_id: Option<Uuid>,
     pub service_id: Option<Uuid>,
     pub key: String,
+    pub source: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct SyncExaVaultRequest {
+    pub scope_type: String, // 'project' | 'service'
+    pub project_id: Uuid,
+    pub service_id: Option<Uuid>,
+    pub exavault_url: Option<String>,
+    #[validate(length(min = 5, message = "ExaVault token is required"))]
+    pub exavault_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncExaVaultResponse {
+    pub synced_count: usize,
+    pub keys: Vec<String>,
 }
 

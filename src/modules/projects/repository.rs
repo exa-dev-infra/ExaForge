@@ -13,6 +13,8 @@ pub trait ProjectRepository: Send + Sync {
         name: &str,
         slug: &str,
         description: Option<&str>,
+        exavault_url: Option<&str>,
+        exavault_token: Option<&str>,
     ) -> Result<ProjectRecord, AppError>;
 
     async fn find_project_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Option<ProjectRecord>, AppError>;
@@ -33,6 +35,8 @@ pub trait ProjectRepository: Send + Sync {
         default_branch: &str,
         webhook_secret: &str,
         pipeline_file: &str,
+        exavault_url: Option<&str>,
+        exavault_token: Option<&str>,
     ) -> Result<ServiceRecord, AppError>;
 
     async fn find_service_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Option<ServiceRecord>, AppError>;
@@ -52,17 +56,21 @@ impl ProjectRepository for PostgresProjectRepository {
         name: &str,
         slug: &str,
         description: Option<&str>,
+        exavault_url: Option<&str>,
+        exavault_token: Option<&str>,
     ) -> Result<ProjectRecord, AppError> {
         let record = sqlx::query_as::<_, ProjectRecord>(
             r#"
-            INSERT INTO projects (name, slug, description)
-            VALUES ($1, $2, $3)
-            RETURNING id, name, slug, description, created_at, updated_at
+            INSERT INTO projects (name, slug, description, exavault_url, exavault_token)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
             "#
         )
         .bind(name)
         .bind(slug)
         .bind(description)
+        .bind(exavault_url)
+        .bind(exavault_token)
         .fetch_one(&mut **tx)
         .await
         .map_err(|e| AppError::database(format!("Failed to create project: {}", e)))?;
@@ -72,7 +80,7 @@ impl ProjectRepository for PostgresProjectRepository {
 
     async fn find_project_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Option<ProjectRecord>, AppError> {
         let record = sqlx::query_as::<_, ProjectRecord>(
-            "SELECT id, name, slug, description, created_at, updated_at FROM projects WHERE id = $1"
+            "SELECT * FROM projects WHERE id = $1"
         )
         .bind(id)
         .fetch_optional(pool)
@@ -84,7 +92,7 @@ impl ProjectRepository for PostgresProjectRepository {
 
     async fn find_project_by_slug(&self, pool: &PgPool, slug: &str) -> Result<Option<ProjectRecord>, AppError> {
         let record = sqlx::query_as::<_, ProjectRecord>(
-            "SELECT id, name, slug, description, created_at, updated_at FROM projects WHERE slug = $1"
+            "SELECT * FROM projects WHERE slug = $1"
         )
         .bind(slug)
         .fetch_optional(pool)
@@ -96,7 +104,7 @@ impl ProjectRepository for PostgresProjectRepository {
 
     async fn list_projects(&self, pool: &PgPool) -> Result<Vec<ProjectRecord>, AppError> {
         let records = sqlx::query_as::<_, ProjectRecord>(
-            "SELECT id, name, slug, description, created_at, updated_at FROM projects ORDER BY created_at DESC"
+            "SELECT * FROM projects ORDER BY created_at DESC"
         )
         .fetch_all(pool)
         .await
@@ -129,16 +137,18 @@ impl ProjectRepository for PostgresProjectRepository {
         default_branch: &str,
         webhook_secret: &str,
         pipeline_file: &str,
+        exavault_url: Option<&str>,
+        exavault_token: Option<&str>,
     ) -> Result<ServiceRecord, AppError> {
         let record = sqlx::query_as::<_, ServiceRecord>(
             r#"
             INSERT INTO services (
                 project_id, name, slug, repo_url, repo_type, path_filters,
-                tag_prefix, default_branch, webhook_secret, pipeline_file
+                tag_prefix, default_branch, webhook_secret, pipeline_file,
+                exavault_url, exavault_token
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, project_id, name, slug, repo_url, repo_type, path_filters,
-                      tag_prefix, default_branch, webhook_secret, pipeline_file, created_at, updated_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING *
             "#
         )
         .bind(project_id)
@@ -151,6 +161,8 @@ impl ProjectRepository for PostgresProjectRepository {
         .bind(default_branch)
         .bind(webhook_secret)
         .bind(pipeline_file)
+        .bind(exavault_url)
+        .bind(exavault_token)
         .fetch_one(&mut **tx)
         .await
         .map_err(|e| AppError::database(format!("Failed to create service: {}", e)))?;

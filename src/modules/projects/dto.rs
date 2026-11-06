@@ -9,6 +9,8 @@ pub struct ProjectRecord {
     pub name: String,
     pub slug: String,
     pub description: Option<String>,
+    pub exavault_url: Option<String>,
+    pub exavault_token: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -26,6 +28,8 @@ pub struct ServiceRecord {
     pub default_branch: String,
     pub webhook_secret: String,
     pub pipeline_file: String,
+    pub exavault_url: Option<String>,
+    pub exavault_token: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -37,6 +41,8 @@ pub struct CreateProjectRequest {
     #[validate(length(min = 2, max = 100, message = "Slug must be 2-100 characters"))]
     pub slug: String,
     pub description: Option<String>,
+    pub exavault_url: Option<String>,
+    pub exavault_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -52,6 +58,8 @@ pub struct CreateServiceRequest {
     pub tag_prefix: Option<String>,
     pub default_branch: Option<String>,
     pub pipeline_file: Option<String>,
+    pub exavault_url: Option<String>,
+    pub exavault_token: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

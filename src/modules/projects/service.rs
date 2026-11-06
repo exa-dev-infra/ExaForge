@@ -39,6 +39,8 @@ impl ProjectService {
             &req.name,
             &req.slug,
             req.description.as_deref(),
+            req.exavault_url.as_deref(),
+            req.exavault_token.as_deref(),
         ).await?;
 
         tx.commit().await
@@ -118,6 +120,8 @@ impl ProjectService {
             req.default_branch.as_deref().unwrap_or("main"),
             &webhook_secret,
             req.pipeline_file.as_deref().unwrap_or(".ci.yaml"),
+            req.exavault_url.as_deref(),
+            req.exavault_token.as_deref(),
         ).await?;
 
         tx.commit().await

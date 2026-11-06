@@ -11,7 +11,7 @@ use crate::pkg::{
     validation::ValidatedJson,
 };
 use super::{
-    dto::CreateSecretRequest,
+    dto::{CreateSecretRequest, SyncExaVaultRequest},
     service::SecretService,
 };
 
@@ -36,4 +36,12 @@ pub async fn delete_secret_handler(
 ) -> Result<impl IntoResponse, AppError> {
     service.delete_secret(id).await?;
     Ok(BaseResponse::success(true, "Secret deleted successfully"))
+}
+
+pub async fn sync_exavault_handler(
+    State(service): State<Arc<SecretService>>,
+    ValidatedJson(payload): ValidatedJson<SyncExaVaultRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let res = service.sync_from_exavault(payload).await?;
+    Ok(BaseResponse::success(res, "ExaVault secrets synchronized successfully"))
 }

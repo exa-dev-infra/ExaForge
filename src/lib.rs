@@ -47,6 +47,7 @@ use crate::{
         webhooks::{router as webhooks_router, service::WebhookService},
     },
     pkg::{
+        exavault::ExaVaultClient,
         idempotency::{idempotency_layer, IdempotencyStore},
         logging::middleware::create_trace_layer,
         realtime::RealtimeHub,
@@ -97,7 +98,8 @@ pub fn build_app(config: AppConfig, pool: PgPool, hub: Arc<RealtimeHub>) -> Rout
 
     // Services
     let project_service = Arc::new(ProjectService::new(pool.clone(), project_repo));
-    let secret_service = Arc::new(SecretService::new(pool.clone(), secret_repo, &config.master_key));
+    let exavault_client = Arc::new(ExaVaultClient::default());
+    let secret_service = Arc::new(SecretService::new(pool.clone(), secret_repo, &config.master_key, exavault_client));
     let agent_service = Arc::new(AgentService::new(pool.clone(), agent_repo));
     let pipeline_service = Arc::new(PipelineService::new(
         pool.clone(),

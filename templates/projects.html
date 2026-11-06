@@ -3,17 +3,191 @@
 {% block title %}Projects & Services - ExaForge{% endblock %}
 
 {% block content %}
-<div class="space-y-8" x-data="{ newProjectModal: false, newServiceModal: false, activeProjectId: '' }">
+<div class="space-y-8" x-data="{
+    newProjectModal: false,
+    newServiceModal: false,
+    activeProjectId: '',
+    activeProjectName: '',
+    activeProjectSlug: '',
+    project: {
+        name: '',
+        slug: '',
+        description: ''
+    },
+    service: {
+        name: '',
+        slug: '',
+        repo_url: '',
+        repo_type: 'multi_repo',
+        path_filters_str: '',
+        tag_prefix: '',
+        default_branch: 'main',
+        pipeline_file: '.ci.yaml'
+    },
+    errorMessage: '',
+    isSubmitting: false,
+    triggerLoading: {},
+
+    openProjectModal() {
+        this.project = { name: '', slug: '', description: '' };
+        this.errorMessage = '';
+        this.newProjectModal = true;
+    },
+    onProjectNameChange() {
+        if (!this.project.slug || this.project.slug === this.autoSlug(this.project.name.slice(0, -1))) {
+            this.project.slug = this.autoSlug(this.project.name);
+        }
+    },
+    autoSlug(str) {
+        return (str || '')
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    },
+    async submitCreateProject() {
+        this.errorMessage = '';
+        if (!this.project.name.trim() || !this.project.slug.trim()) {
+            this.errorMessage = 'Project name and slug are required.';
+            return;
+        }
+
+        this.isSubmitting = true;
+        try {
+            const payload = {
+                name: this.project.name.trim(),
+                slug: this.project.slug.trim(),
+                description: this.project.description.trim() ? this.project.description.trim() : null
+            };
+            const res = await fetch('/api/v1/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to create project');
+            window.location.reload();
+        } catch (err) {
+            this.errorMessage = err.message;
+        } finally {
+            this.isSubmitting = false;
+        }
+    },
+    async deleteProject(slug, name) {
+        if (!confirm(`Are you sure you want to delete project '${name}' (${slug}) and all its associated services? This cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/v1/projects/${slug}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to delete project');
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    },
+
+    openServiceModal(projectId, projectName, projectSlug) {
+        this.activeProjectId = projectId;
+        this.activeProjectName = projectName;
+        this.activeProjectSlug = projectSlug;
+        this.service = {
+            name: '',
+            slug: '',
+            repo_url: '',
+            repo_type: 'multi_repo',
+            path_filters_str: '',
+            tag_prefix: '',
+            default_branch: 'main',
+            pipeline_file: '.ci.yaml'
+        };
+        this.errorMessage = '';
+        this.newServiceModal = true;
+    },
+    onServiceNameChange() {
+        if (!this.service.slug || this.service.slug === this.autoSlug(this.service.name.slice(0, -1))) {
+            this.service.slug = this.autoSlug(this.service.name);
+        }
+    },
+    async submitCreateService() {
+        this.errorMessage = '';
+        if (!this.service.name.trim() || !this.service.slug.trim() || !this.service.repo_url.trim()) {
+            this.errorMessage = 'Service name, slug, and repository URL are required.';
+            return;
+        }
+
+        this.isSubmitting = true;
+        try {
+            const pathFilters = this.service.path_filters_str
+                ? this.service.path_filters_str.split(',').map(s => s.trim()).filter(Boolean)
+                : null;
+            const payload = {
+                name: this.service.name.trim(),
+                slug: this.service.slug.trim(),
+                repo_url: this.service.repo_url.trim(),
+                repo_type: this.service.repo_type,
+                path_filters: pathFilters,
+                tag_prefix: this.service.tag_prefix.trim() ? this.service.tag_prefix.trim() : null,
+                default_branch: this.service.default_branch.trim() || 'main',
+                pipeline_file: this.service.pipeline_file.trim() || '.ci.yaml'
+            };
+            const res = await fetch(`/api/v1/projects/${this.activeProjectId}/services`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to create service');
+            window.location.reload();
+        } catch (err) {
+            this.errorMessage = err.message;
+        } finally {
+            this.isSubmitting = false;
+        }
+    },
+    async deleteService(serviceId, serviceName) {
+        if (!confirm(`Are you sure you want to delete service '${serviceName}'? This will remove its pipeline definitions.`)) return;
+        try {
+            const res = await fetch(`/api/v1/services/${serviceId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to delete service');
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    },
+
+    async triggerRun(projectSlug, serviceSlug, branch) {
+        const key = `${projectSlug}/${serviceSlug}`;
+        this.triggerLoading[key] = true;
+        try {
+            const res = await fetch(`/api/v1/projects/${projectSlug}/services/${serviceSlug}/triggers`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ git_ref: branch || 'main' })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to trigger pipeline run');
+            if (data.data && data.data.id) {
+                window.location.href = `/pipelines/${data.data.id}`;
+            } else {
+                window.location.reload();
+            }
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            this.triggerLoading[key] = false;
+        }
+    }
+}">
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-[#21262d]">
         <div>
             <h1 class="text-2xl font-bold text-white tracking-tight">Projects & Stacks</h1>
-            <p class="text-sm text-slate-400 mt-1">Manage project groups, FE/BE services, monorepo path filters, and git
-                mappings.</p>
+            <p class="text-sm text-slate-400 mt-1">Manage project groups, FE/BE services, monorepo path filters, and git mappings.</p>
         </div>
-        <button @click="newProjectModal = true"
-            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-orange-600/20">
-            + New Project
+        <button @click="openProjectModal()"
+            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-orange-600/20 flex items-center space-x-1.5">
+            <span>+</span>
+            <span>New Project</span>
         </button>
     </div>
 
@@ -21,29 +195,35 @@
     <div class="grid grid-cols-1 gap-6">
         {% if projects.is_empty() %}
         <div class="bg-[#161b22] border border-[#30363d] p-12 rounded-xl text-center">
-            <p class="text-slate-400 text-sm">No projects created yet.</p>
-            <button @click="newProjectModal = true"
-                class="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition">
+            <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-500/10 text-orange-400 flex items-center justify-center text-xl">📁</div>
+            <p class="text-slate-300 font-medium">No projects created yet</p>
+            <p class="text-slate-500 text-xs mt-1">Create a project to group services, repositories, and configure CI/CD pipelines.</p>
+            <button @click="openProjectModal()"
+                class="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition shadow-lg shadow-orange-600/20">
                 Create First Project
             </button>
         </div>
         {% else %}
         {% for p in projects %}
         <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div class="flex items-center space-x-3">
-                    <span class="text-xl">📁</span>
+                    <div class="w-10 h-10 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center justify-center text-lg">📁</div>
                     <div>
                         <h2 class="text-lg font-bold text-white">{{ p.name }}</h2>
-                        <span
-                            class="text-xs font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">slug:
-                            {{ p.slug }}</span>
+                        <span class="text-xs font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">slug: {{ p.slug }}</span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button @click="activeProjectId = '{{ p.id }}'; newServiceModal = true"
-                        class="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] text-slate-200 text-xs font-medium rounded-lg transition border border-[#30363d]">
-                        + Add Service
+                    <button @click="openServiceModal('{{ p.id }}', '{{ p.name }}', '{{ p.slug }}')"
+                        class="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] text-slate-200 text-xs font-medium rounded-lg transition border border-[#30363d] flex items-center space-x-1">
+                        <span>+</span>
+                        <span>Add Service</span>
+                    </button>
+                    <button type="button" @click="deleteProject('{{ p.slug }}', '{{ p.name }}')"
+                        title="Delete project"
+                        class="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition hover:bg-rose-500/10">
+                        🗑️
                     </button>
                 </div>
             </div>
@@ -57,28 +237,37 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {% for s in services %}
                     {% if s.project_id == p.id %}
-                    <div class="bg-[#0d1117] border border-[#30363d] p-4 rounded-lg space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-sm text-white">{{ s.name }}</span>
-                            <span
-                                class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                {{ s.repo_type }}
-                            </span>
+                    <div class="bg-[#0d1117] border border-[#30363d] p-4 rounded-lg space-y-2 flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sm text-white">{{ s.name }}</span>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                        {{ s.repo_type }}
+                                    </span>
+                                    <button type="button" @click="deleteService('{{ s.id }}', '{{ s.name }}')"
+                                        title="Delete service"
+                                        class="text-slate-500 hover:text-rose-400 text-xs px-1">
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs font-mono text-slate-400 truncate" title="{{ s.repo_url }}">{{ s.repo_url }}</p>
+                            <div class="text-[11px] text-slate-500 font-mono space-y-0.5">
+                                <div>Pipeline: <span class="text-slate-300">{{ s.pipeline_file }}</span></div>
+                                {% if let Some(prefix) = s.tag_prefix %}
+                                <div class="text-amber-400">Tag Prefix: {{ prefix }}</div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <p class="text-xs font-mono text-slate-400 truncate" title="{{ s.repo_url }}">{{ s.repo_url }}
-                        </p>
-                        {% if let Some(prefix) = s.tag_prefix %}
-                        <p class="text-[11px] text-amber-400 font-mono">Tag Prefix: {{ prefix }}</p>
-                        {% endif %}
-                        <div class="pt-2 flex items-center justify-between text-xs">
-                            <span class="text-slate-500">Branch: <span class="text-slate-300 font-mono">{{
-                                    s.default_branch }}</span></span>
-                            <form method="POST" action="/api/v1/projects/{{ p.slug }}/services/{{ s.slug }}/triggers">
-                                <button type="submit"
-                                    class="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 border border-orange-500/30 rounded text-[11px] font-medium transition">
-                                    Trigger Run ⚡
-                                </button>
-                            </form>
+                        <div class="pt-3 border-t border-[#21262d] flex items-center justify-between text-xs">
+                            <span class="text-slate-500">Branch: <span class="text-slate-300 font-mono">{{ s.default_branch }}</span></span>
+                            <button type="button" @click="triggerRun('{{ p.slug }}', '{{ s.slug }}', '{{ s.default_branch }}')"
+                                :disabled="triggerLoading['{{ p.slug }}/{{ s.slug }}']"
+                                class="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600/40 disabled:opacity-50 text-orange-300 border border-orange-500/30 rounded text-[11px] font-medium transition flex items-center space-x-1">
+                                <span x-show="!triggerLoading['{{ p.slug }}/{{ s.slug }}']">Trigger Run ⚡</span>
+                                <span x-show="triggerLoading['{{ p.slug }}/{{ s.slug }}']">Triggering...</span>
+                            </button>
                         </div>
                     </div>
                     {% endif %}
@@ -92,32 +281,143 @@
 
     <!-- Modal: Create Project -->
     <div x-show="newProjectModal" x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
         <div class="bg-[#161b22] border border-[#30363d] w-full max-w-md rounded-xl p-6 shadow-2xl space-y-4"
             @click.away="newProjectModal = false">
-            <h3 class="text-lg font-bold text-white">Create New Project</h3>
-            <form method="POST" action="/api/v1/projects" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-[#21262d] pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                    <span class="text-orange-500">📁</span>
+                    <span>Create New Project</span>
+                </h3>
+                <button type="button" @click="newProjectModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+
+            <template x-if="errorMessage">
+                <div class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400" x-text="errorMessage"></div>
+            </template>
+
+            <form @submit.prevent="submitCreateProject()" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Project Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Coffee Ecosystem"
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Project Name <span class="text-rose-400">*</span></label>
+                    <input type="text" x-model="project.name" @input="onProjectNameChange()" required placeholder="e.g. Coffee Ecosystem"
                         class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Slug</label>
-                    <input type="text" name="slug" required placeholder="e.g. coffee"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Slug <span class="text-rose-400">*</span></label>
+                    <input type="text" x-model="project.slug" required placeholder="e.g. coffee-ecosystem"
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Unique URL identifier for this project.</p>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Description (Optional)</label>
-                    <textarea name="description" rows="3" placeholder="Brief overview of project"
+                    <textarea x-model="project.description" rows="3" placeholder="Brief overview of project and purpose..."
                         class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"></textarea>
                 </div>
-                <div class="flex items-center justify-end space-x-3 pt-2">
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#21262d]">
                     <button type="button" @click="newProjectModal = false"
-                        class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">Cancel</button>
-                    <button type="submit"
-                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">Save
-                        Project</button>
+                        class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">
+                        Cancel
+                    </button>
+                    <button type="submit" :disabled="isSubmitting"
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">
+                        <span x-show="!isSubmitting">Save Project</span>
+                        <span x-show="isSubmitting">Saving...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Service -->
+    <div x-show="newServiceModal" x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-[#161b22] border border-[#30363d] w-full max-w-lg rounded-xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            @click.away="newServiceModal = false">
+            <div class="flex items-center justify-between border-b border-[#21262d] pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                        <span class="text-orange-500">🚀</span>
+                        <span>Add Service / Stack</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Under project: <span class="text-orange-400 font-semibold" x-text="activeProjectName"></span></p>
+                </div>
+                <button type="button" @click="newServiceModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+
+            <template x-if="errorMessage">
+                <div class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400" x-text="errorMessage"></div>
+            </template>
+
+            <form @submit.prevent="submitCreateService()" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Service Name <span class="text-rose-400">*</span></label>
+                        <input type="text" x-model="service.name" @input="onServiceNameChange()" required placeholder="e.g. Backend API"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Slug <span class="text-rose-400">*</span></label>
+                        <input type="text" x-model="service.slug" required placeholder="e.g. backend"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Git Repository URL <span class="text-rose-400">*</span></label>
+                    <input type="text" x-model="service.repo_url" required placeholder="https://github.com/my-org/backend-repo.git"
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Must start with http:// or https:// (or git/ssh URL).</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Repository Architecture</label>
+                        <select x-model="service.repo_type"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                            <option value="multi_repo">Multi-Repo (Dedicated)</option>
+                            <option value="monorepo">Monorepo (Shared)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Default Branch</label>
+                        <input type="text" x-model="service.default_branch" placeholder="main"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                    </div>
+                </div>
+
+                <!-- Monorepo specific: Path filters -->
+                <div x-show="service.repo_type === 'monorepo'">
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Monorepo Path Filters (comma-separated)</label>
+                    <input type="text" x-model="service.path_filters_str" placeholder="apps/backend/**,packages/core/**"
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Triggers pipeline only when commits touch matching path globs.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Pipeline File</label>
+                        <input type="text" x-model="service.pipeline_file" placeholder=".ci.yaml"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                        <p class="text-[11px] text-slate-500 mt-1">Relative file path in repo (.ci.yaml or .ci.toml)</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Tag Prefix (Optional)</label>
+                        <input type="text" x-model="service.tag_prefix" placeholder="e.g. backend-v or v"
+                            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500">
+                        <p class="text-[11px] text-slate-500 mt-1">Triggers on git push tags matching prefix</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#21262d]">
+                    <button type="button" @click="newServiceModal = false"
+                        class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">
+                        Cancel
+                    </button>
+                    <button type="submit" :disabled="isSubmitting"
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">
+                        <span x-show="!isSubmitting">Create Service</span>
+                        <span x-show="isSubmitting">Creating...</span>
+                    </button>
                 </div>
             </form>
         </div>

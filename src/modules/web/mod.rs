@@ -59,6 +59,8 @@ pub struct AgentsTemplate {
 #[template(path = "secrets.html")]
 pub struct SecretsTemplate {
     pub secrets: Vec<SecretSummaryResponse>,
+    pub projects: Vec<ProjectRecord>,
+    pub services: Vec<ServiceRecord>,
 }
 
 #[derive(Template)]
@@ -130,7 +132,9 @@ pub async fn secrets_view(
     State(ctx): State<WebContext>,
 ) -> Result<SecretsTemplate, AppError> {
     let secrets = ctx.secret_service.list_secrets_summary().await?;
-    Ok(SecretsTemplate { secrets })
+    let projects = ctx.project_service.list_projects().await?;
+    let services = ctx.project_service.list_all_services().await?;
+    Ok(SecretsTemplate { secrets, projects, services })
 }
 
 pub async fn users_view(

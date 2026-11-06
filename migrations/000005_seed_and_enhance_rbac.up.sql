@@ -22,3 +22,4 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Ensure fast lookup
 CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles(is_system);
+

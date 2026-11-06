@@ -8,7 +8,7 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#21262d]">
         <div>
             <div class="flex items-center space-x-3">
-                <a href="/" class="text-xs text-violet-400 hover:underline">&larr; Back to Dashboard</a>
+                <a href="/" class="text-xs text-orange-400 hover:underline">&larr; Back to Dashboard</a>
                 <span class="text-slate-500">/</span>
                 <span class="text-xs font-mono text-slate-400">{{ pipeline.id }}</span>
             </div>
@@ -50,7 +50,7 @@
         </div>
         <div>
             <span class="text-slate-500 uppercase tracking-wider block font-semibold">Concurrency Group</span>
-            <span class="font-mono text-violet-400 mt-1 block">
+            <span class="font-mono text-orange-400 mt-1 block">
                 {% if let Some(grp) = pipeline.concurrency_group %}{{ grp }}{% else %}None{% endif %}
             </span>
         </div>
@@ -61,8 +61,8 @@
         <h2 class="text-sm font-bold text-white uppercase tracking-wider">Jobs & DAG Dependencies</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {% for j in jobs %}
-            <div class="bg-[#0d1117] border border-[#30363d] p-4 rounded-lg cursor-pointer hover:border-violet-500 transition"
-                :class="{ 'border-violet-500 bg-violet-950/10': activeJobId === '{{ j.id }}' }"
+            <div class="bg-[#0d1117] border border-[#30363d] p-4 rounded-lg cursor-pointer hover:border-orange-500 transition"
+                :class="{ 'border-orange-500 bg-orange-950/20': activeJobId === '{{ j.id }}' }"
                 @click="selectJob('{{ j.id }}', '{{ j.name }}')">
                 <div class="flex items-center justify-between">
                     <span class="font-bold text-sm text-white">{{ j.name }}</span>
@@ -79,7 +79,7 @@
                     <p>Required tags: <span class="text-slate-300 font-mono">{{ j.required_tags }}</span></p>
                     {% if let Some(summary) = j.step_summaries %}
                     {% if !summary.is_empty() %}
-                    <p class="text-violet-400 text-[11px] mt-1 font-medium">✔ Has Step Summary</p>
+                    <p class="text-orange-400 text-[11px] mt-1 font-medium">✔ Has Step Summary</p>
                     {% endif %}
                     {% endif %}
                 </div>

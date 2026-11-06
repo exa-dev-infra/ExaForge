@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ExaForge - Lightweight CI/CD Engine{% endblock %}</title>
+    <title>{% block title %}ExaForge - Lightweight High-Performance CI/CD Engine{% endblock %}</title>
+    <!-- Brand Favicon (Forge Anvil & Lightning Mark) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24'/%3E%3Cstop offset='50%25' stop-color='%23f97316'/%3E%3Cstop offset='100%25' stop-color='%23ea580c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='%230a0d13'/%3E%3Cpath d='M18 36h64l-8 16H62l-6 26H44l-6-26H26z' fill='url(%23g)'/%3E%3Cpath d='M54 20L38 48h14l-6 24 22-30H54l6-22h-6z' fill='%23ffffff'/%3E%3C/svg%3E">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -14,14 +17,28 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f5f3ff',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316', // Official ExaForge Orange
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                            950: '#431407',
                         },
-                        darkbg: '#0b0e14',
-                        darkcard: '#161b22',
-                        darkborder: '#21262d',
+                        forge: {
+                            amber: '#fbbf24',
+                            flame: '#f97316',
+                            ember: '#ea580c',
+                            glow: '#ff8c38',
+                        },
+                        darkbg: '#0a0d13',
+                        darkcard: '#12161f',
+                        darkborder: '#1e2430',
+                        darkhover: '#19202c',
                     }
                 }
             }
@@ -40,21 +57,21 @@
         }
 
         ::-webkit-scrollbar-track {
-            background: #0b0e14;
+            background: #0a0d13;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #21262d;
+            background: #1e2430;
             border-radius: 3px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #8b5cf6;
+            background: #f97316;
         }
     </style>
 </head>
 
-<body class="bg-[#0b0e14] text-slate-200 font-sans min-h-screen antialiased flex flex-col selection:bg-violet-500 selection:text-white"
+<body class="bg-[#0a0d13] text-slate-200 font-sans min-h-screen antialiased flex flex-col selection:bg-orange-500 selection:text-white"
     x-data="{ sidebarOpen: false, currentPath: window.location.pathname }">
 
     <div class="min-h-screen flex flex-1 w-full">
@@ -66,25 +83,47 @@
             x-transition:leave="transition-opacity ease-linear duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden">
+            class="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm lg:hidden">
         </div>
 
         <!-- Left Sidebar Navigation -->
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-            class="fixed lg:sticky top-0 z-50 h-screen w-64 bg-[#11151c] border-r border-[#21262d] flex flex-col transition-transform duration-200 ease-in-out shrink-0">
+            class="fixed lg:sticky top-0 z-50 h-screen w-64 bg-[#0e121a] border-r border-[#1e2430] flex flex-col transition-transform duration-200 ease-in-out shrink-0">
             
             <!-- Brand / Header -->
-            <div class="h-16 px-5 border-b border-[#21262d] flex items-center justify-between">
+            <div class="h-16 px-5 border-b border-[#1e2430] flex items-center justify-between bg-[#0a0d13]/60">
                 <a href="/" class="flex items-center space-x-3 group">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center font-black text-white shadow-lg shadow-violet-500/25">
-                        ⚡
+                    <!-- Custom SVG Logomark: Forge Anvil & Lightning Fusion -->
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1c2230] to-[#0e121a] border border-[#2b3547] flex items-center justify-center p-1.5 shadow-lg shadow-orange-500/10 group-hover:border-orange-500/50 group-hover:shadow-orange-500/20 transition-all duration-300">
+                        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="brandAnvil" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#fbbf24"/>
+                                    <stop offset="50%" stop-color="#f97316"/>
+                                    <stop offset="100%" stop-color="#ea580c"/>
+                                </linearGradient>
+                                <linearGradient id="brandSpark" x1="30" y1="20" x2="70" y2="80" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#ffffff"/>
+                                    <stop offset="35%" stop-color="#fed7aa"/>
+                                    <stop offset="100%" stop-color="#fbbf24"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Heavy Anvil Base -->
+                            <path d="M16 36H84L76 52H64L58 78H42L36 52H24L16 36Z" fill="url(#brandAnvil)"/>
+                            <!-- Anvil Strike Crown -->
+                            <path d="M22 24H78L74 31H26L22 24Z" fill="#ffedd5" fill-opacity="0.95"/>
+                            <!-- Lightning Forge Energy Spark -->
+                            <path d="M54 18L36 48H52L46 76L68 42H52L58 18H54Z" fill="url(#brandSpark)"/>
+                        </svg>
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-base font-bold tracking-tight text-white group-hover:text-violet-400 transition-colors">ExaForge</span>
-                        <span class="text-[10px] text-slate-400 font-mono -mt-0.5">CI/CD Engine</span>
+                        <span class="text-base font-black tracking-tight text-white group-hover:text-orange-400 transition-colors flex items-center">
+                            ExaForge
+                        </span>
+                        <span class="text-[10px] text-orange-400/80 font-mono tracking-wider uppercase font-semibold">CI/CD Engine</span>
                     </div>
                 </a>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 font-mono font-medium">v0.1.0</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-mono font-medium">v0.1.0</span>
             </div>
 
             <!-- Navigation Sections -->
@@ -94,7 +133,7 @@
                     <div class="px-3 mb-2 text-[10px] font-bold tracking-wider uppercase text-slate-500">Pipeline & Ops</div>
                     <nav class="space-y-1">
                         <a href="/"
-                            :class="currentPath === '/' ? 'bg-violet-600/15 text-violet-300 border-l-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-white hover:bg-[#161b22]'"
+                            :class="currentPath === '/' ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
                             class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
                             <!-- Dashboard Icon -->
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +142,7 @@
                             <span>Dashboard</span>
                         </a>
                         <a href="/projects"
-                            :class="currentPath.startsWith('/projects') ? 'bg-violet-600/15 text-violet-300 border-l-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-white hover:bg-[#161b22]'"
+                            :class="currentPath.startsWith('/projects') ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
                             class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
                             <!-- Folder / Projects Icon -->
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +158,7 @@
                     <div class="px-3 mb-2 text-[10px] font-bold tracking-wider uppercase text-slate-500">Compute & Infra</div>
                     <nav class="space-y-1">
                         <a href="/agents"
-                            :class="currentPath.startsWith('/agents') ? 'bg-violet-600/15 text-violet-300 border-l-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-white hover:bg-[#161b22]'"
+                            :class="currentPath.startsWith('/agents') ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
                             class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
                             <!-- Worker Agents Icon -->
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,7 +167,7 @@
                             <span>Worker Agents</span>
                         </a>
                         <a href="/secrets"
-                            :class="currentPath.startsWith('/secrets') ? 'bg-violet-600/15 text-violet-300 border-l-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-white hover:bg-[#161b22]'"
+                            :class="currentPath.startsWith('/secrets') ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
                             class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
                             <!-- Secrets & Encryption Icon -->
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +183,7 @@
                     <div class="px-3 mb-2 text-[10px] font-bold tracking-wider uppercase text-slate-500">Security & Access</div>
                     <nav class="space-y-1">
                         <a href="/users"
-                            :class="currentPath.startsWith('/users') ? 'bg-violet-600/15 text-violet-300 border-l-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-white hover:bg-[#161b22]'"
+                            :class="currentPath.startsWith('/users') ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
                             class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
                             <!-- Users / RBAC Icon -->
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,16 +196,16 @@
             </div>
 
             <!-- Sidebar Footer -->
-            <div class="p-4 border-t border-[#21262d] bg-[#0d1117]/80 space-y-3">
+            <div class="p-4 border-t border-[#1e2430] bg-[#0a0d13]/80 space-y-3">
                 <div class="flex items-center justify-between text-xs">
                     <div class="flex items-center space-x-2 text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span class="font-mono text-[11px]">Controller Live</span>
                     </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Rust Engine</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-mono font-medium">Rust Engine</span>
                 </div>
-                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-[#21262d]">
-                    <a href="https://github.com/exa-dev-infra/ExaForge" target="_blank" class="hover:text-violet-400 transition flex items-center space-x-1">
+                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-[#1e2430]">
+                    <a href="https://github.com/exa-dev-infra/ExaForge" target="_blank" class="hover:text-orange-400 transition flex items-center space-x-1">
                         <span>GitHub</span>
                         <span>↗</span>
                     </a>
@@ -176,12 +215,12 @@
         </aside>
 
         <!-- Right Side: Header + Main View -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 bg-[#0a0d13]">
             <!-- Top Header Bar -->
-            <header class="h-16 border-b border-[#21262d] bg-[#161b22]/70 backdrop-blur sticky top-0 z-30 px-6 flex items-center justify-between">
+            <header class="h-16 border-b border-[#1e2430] bg-[#0e121a]/80 backdrop-blur sticky top-0 z-30 px-6 flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <!-- Mobile Hamburger Menu Button -->
-                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-[#21262d] rounded-lg transition">
+                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-[#151a24] rounded-lg transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
@@ -190,21 +229,22 @@
                     <!-- Breadcrumbs Context -->
                     <div class="flex items-center space-x-2 text-xs font-mono">
                         <span class="text-slate-500 hidden sm:inline">cluster:</span>
-                        <span class="text-violet-400 font-semibold bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">eka-dev</span>
+                        <span class="text-orange-400 font-semibold bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">eka-dev</span>
                         <span class="text-slate-600">/</span>
                         <span class="text-slate-500 hidden sm:inline">ns:</span>
-                        <span class="text-slate-300 bg-[#21262d] px-2 py-0.5 rounded">exaforge</span>
+                        <span class="text-slate-300 bg-[#151a24] px-2 py-0.5 rounded">exaforge</span>
                     </div>
                 </div>
 
                 <!-- Right Header Actions -->
                 <div class="flex items-center space-x-3">
-                    <div class="hidden sm:flex items-center space-x-2 text-xs text-slate-400 bg-[#0d1117] border border-[#30363d] px-3 py-1.5 rounded-full">
+                    <div class="hidden sm:flex items-center space-x-2 text-xs text-slate-400 bg-[#12161f] border border-[#1e2430] px-3 py-1.5 rounded-full">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                         <span>Postgres Connected</span>
                     </div>
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-lg shadow-violet-600/20">
-                        ⚡
+                    <!-- Brand Avatar Pill -->
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 text-white font-black text-xs flex items-center justify-center shadow-lg shadow-orange-500/20">
+                        EF
                     </div>
                 </div>
             </header>
@@ -215,9 +255,13 @@
             </main>
 
             <!-- Compact Dashboard Footer -->
-            <footer class="border-t border-[#21262d] py-3.5 px-8 text-center sm:text-left text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 bg-[#0d1117]/40">
-                <div>ExaForge CI/CD Engine &bull; Pure Rust SSR with Askama &bull; Controller + Worker Daemon</div>
-                <div class="font-mono text-[11px] text-slate-400">Axum 0.7 &bull; Tokio &bull; SQLx</div>
+            <footer class="border-t border-[#1e2430] py-3.5 px-8 text-center sm:text-left text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 bg-[#0e121a]/60">
+                <div class="flex items-center space-x-2">
+                    <span class="text-orange-400 font-bold">ExaForge</span>
+                    <span>&bull;</span>
+                    <span>The Self-Hosted High-Performance CI/CD Engine</span>
+                </div>
+                <div class="font-mono text-[11px] text-slate-400">Pure Rust SSR &bull; Axum 0.7 &bull; Tokio</div>
             </footer>
         </div>
     </div>

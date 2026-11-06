@@ -71,7 +71,7 @@
                 + Assign Project Access
             </button>
             <button @click="newUserModal = true"
-                class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition shadow-lg shadow-violet-600/20">
+                class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition shadow-lg shadow-orange-600/20">
                 + New User
             </button>
         </div>
@@ -80,12 +80,12 @@
     <!-- Navigation Tabs -->
     <div class="flex items-center space-x-4 border-b border-[#21262d]">
         <button @click="activeTab = 'users'"
-            :class="activeTab === 'users' ? 'text-violet-400 border-b-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-slate-200'"
+            :class="activeTab === 'users' ? 'text-orange-400 border-b-2 border-orange-500 font-semibold' : 'text-slate-400 hover:text-slate-200'"
             class="pb-3 text-sm transition">
             👥 Users Directory ({{ users.len() }})
         </button>
         <button @click="activeTab = 'roles'"
-            :class="activeTab === 'roles' ? 'text-violet-400 border-b-2 border-violet-500 font-semibold' : 'text-slate-400 hover:text-slate-200'"
+            :class="activeTab === 'roles' ? 'text-orange-400 border-b-2 border-orange-500 font-semibold' : 'text-slate-400 hover:text-slate-200'"
             class="pb-3 text-sm transition">
             🛡️ System Roles & Permissions Matrix ({{ roles.len() }})
         </button>
@@ -97,7 +97,7 @@
         <div class="bg-[#161b22] border border-[#30363d] p-12 rounded-xl text-center">
             <p class="text-slate-400 text-sm">No registered users found.</p>
             <button @click="newUserModal = true"
-                class="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition">
+                class="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition">
                 Create First User
             </button>
         </div>
@@ -118,7 +118,7 @@
                         {% for u in users %}
                         <tr class="hover:bg-[#1c2128] transition-colors">
                             <td class="px-6 py-4 flex items-center space-x-3">
-                                <div class="w-9 h-9 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 flex items-center justify-center font-bold text-sm">
+                                <div class="w-9 h-9 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center justify-center font-bold text-sm">
                                     {{ u.name.chars().next().unwrap_or('U') }}
                                 </div>
                                 <div>
@@ -182,7 +182,7 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2">
                         <span class="text-base font-bold text-white">{{ r.name }}</span>
-                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">
                             {{ r.id }}
                         </span>
                     </div>
@@ -225,22 +225,22 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
                     <input type="text" x-model="newUser.name" required placeholder="e.g. John Doe"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
                     <input type="email" x-model="newUser.email" required placeholder="john@example.com"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Initial Password</label>
                     <input type="password" x-model="newUser.password" required minlength="8" placeholder="At least 8 characters"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Global System Role</label>
                     <select x-model="newUser.role"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                         <option value="super_admin">⚡ Super Admin (Full Access)</option>
                         <option value="admin">🛡️ Administrator (User & Resource Mgmt)</option>
                         <option value="developer" selected>💻 Developer (Pipeline Triggers & Secrets)</option>
@@ -251,7 +251,7 @@
                     <button type="button" @click="newUserModal = false"
                         class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">Cancel</button>
                     <button type="submit"
-                        class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-violet-600/20">
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">
                         Create User
                     </button>
                 </div>
@@ -274,7 +274,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Select Project</label>
                     <select x-model="projectMember.project_id" required
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                         <option value="">-- Choose Project --</option>
                         {% for p in projects %}
                         <option value="{{ p.id }}">{{ p.name }} ({{ p.slug }})</option>
@@ -284,7 +284,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Select User</label>
                     <select x-model="projectMember.user_id" required
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                         <option value="">-- Choose User --</option>
                         {% for u in users %}
                         <option value="{{ u.id }}">{{ u.name }} ({{ u.email }})</option>
@@ -294,7 +294,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Project Role</label>
                     <select x-model="projectMember.role"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                         <option value="maintainer">Project Maintainer (Full Project Control)</option>
                         <option value="viewer">Project Viewer (Read-only)</option>
                     </select>
@@ -303,7 +303,7 @@
                     <button type="button" @click="projectMemberModal = false"
                         class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">Cancel</button>
                     <button type="submit"
-                        class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-violet-600/20">
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">
                         Assign Access
                     </button>
                 </div>
@@ -312,3 +312,4 @@
     </div>
 </div>
 {% endblock %}
+

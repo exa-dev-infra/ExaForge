@@ -12,7 +12,7 @@
                 mappings.</p>
         </div>
         <button @click="newProjectModal = true"
-            class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-violet-600/20">
+            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-orange-600/20">
             + New Project
         </button>
     </div>
@@ -23,7 +23,7 @@
         <div class="bg-[#161b22] border border-[#30363d] p-12 rounded-xl text-center">
             <p class="text-slate-400 text-sm">No projects created yet.</p>
             <button @click="newProjectModal = true"
-                class="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition">
+                class="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition">
                 Create First Project
             </button>
         </div>
@@ -36,7 +36,7 @@
                     <div>
                         <h2 class="text-lg font-bold text-white">{{ p.name }}</h2>
                         <span
-                            class="text-xs font-mono text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">slug:
+                            class="text-xs font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">slug:
                             {{ p.slug }}</span>
                     </div>
                 </div>
@@ -75,7 +75,7 @@
                                     s.default_branch }}</span></span>
                             <form method="POST" action="/api/v1/projects/{{ p.slug }}/services/{{ s.slug }}/triggers">
                                 <button type="submit"
-                                    class="px-2.5 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 rounded text-[11px] font-medium transition">
+                                    class="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 border border-orange-500/30 rounded text-[11px] font-medium transition">
                                     Trigger Run ⚡
                                 </button>
                             </form>
@@ -100,23 +100,23 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Project Name</label>
                     <input type="text" name="name" required placeholder="e.g. Coffee Ecosystem"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Slug</label>
                     <input type="text" name="slug" required placeholder="e.g. coffee"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500">
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Description (Optional)</label>
                     <textarea name="description" rows="3" placeholder="Brief overview of project"
-                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"></textarea>
+                        class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"></textarea>
                 </div>
                 <div class="flex items-center justify-end space-x-3 pt-2">
                     <button type="button" @click="newProjectModal = false"
                         class="px-4 py-2 bg-[#21262d] text-slate-300 text-xs rounded-lg hover:bg-[#30363d] transition">Cancel</button>
                     <button type="submit"
-                        class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-violet-600/20">Save
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition shadow-lg shadow-orange-600/20">Save
                         Project</button>
                 </div>
             </form>

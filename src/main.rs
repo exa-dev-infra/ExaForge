@@ -86,6 +86,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         info!("Database migrations executed successfully");
                     }
+                    if let Err(e) = exaforge::seed_default_super_admin(&pool).await {
+                        tracing::warn!(error = %e, "Default super admin seed failed");
+                    }
                     pool
                 }
                 Err(err) => {

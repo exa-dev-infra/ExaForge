@@ -18,7 +18,9 @@ use crate::{
             dto::{ProjectRecord, ServiceRecord},
             service::ProjectService,
         },
+        rbac::{dto::RoleRecord, service::RbacService},
         secrets::{dto::SecretSummaryResponse, service::SecretService},
+        user::{dto::UserResponse, service::UserService},
     },
     pkg::errors::AppError,
 };
@@ -59,12 +61,23 @@ pub struct SecretsTemplate {
     pub secrets: Vec<SecretSummaryResponse>,
 }
 
+#[derive(Template)]
+#[template(path = "users.html")]
+pub struct UsersTemplate {
+    pub users: Vec<UserResponse>,
+    pub roles: Vec<RoleRecord>,
+    pub projects: Vec<ProjectRecord>,
+    pub services: Vec<ServiceRecord>,
+}
+
 #[derive(Clone)]
 pub struct WebContext {
     pub project_service: Arc<ProjectService>,
     pub pipeline_service: Arc<PipelineService>,
     pub agent_service: Arc<AgentService>,
     pub secret_service: Arc<SecretService>,
+    pub user_service: Arc<UserService>,
+    pub rbac_service: Arc<RbacService>,
 }
 
 pub async fn dashboard_view(
@@ -120,6 +133,22 @@ pub async fn secrets_view(
     Ok(SecretsTemplate { secrets })
 }
 
+pub async fn users_view(
+    State(ctx): State<WebContext>,
+) -> Result<UsersTemplate, AppError> {
+    let (users, _, _, _) = ctx.user_service.list_users(Default::default()).await?;
+    let roles = ctx.rbac_service.list_roles().await?;
+    let projects = ctx.project_service.list_projects().await?;
+    let services = ctx.project_service.list_all_services().await?;
+
+    Ok(UsersTemplate {
+        users,
+        roles,
+        projects,
+        services,
+    })
+}
+
 pub fn web_router(ctx: WebContext) -> Router {
     Router::new()
         .route("/", get(dashboard_view))
@@ -127,5 +156,6 @@ pub fn web_router(ctx: WebContext) -> Router {
         .route("/pipelines/:id", get(pipeline_detail_view))
         .route("/agents", get(agents_view))
         .route("/secrets", get(secrets_view))
+        .route("/users", get(users_view))
         .with_state(ctx)
 }

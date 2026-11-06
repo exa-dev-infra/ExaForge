@@ -8,7 +8,10 @@ use crate::{
     pkg::errors::AppError,
 };
 use super::{
-    dto::{AssignProjectMemberRequest, AssignServiceMemberRequest, ProjectMembershipRecord, ServiceMembershipRecord},
+    dto::{
+        AssignProjectMemberRequest, AssignServiceMemberRequest, ProjectMemberDetail,
+        ProjectMembershipRecord, RoleRecord, ServiceMemberDetail, ServiceMembershipRecord,
+    },
     repository::RbacRepository,
 };
 
@@ -159,12 +162,48 @@ impl RbacService {
         Ok(member)
     }
 
+    pub async fn list_roles(&self) -> Result<Vec<RoleRecord>, AppError> {
+        self.repo.list_roles(&self.pool).await
+    }
+
     pub async fn list_project_members(&self, project_id: Uuid) -> Result<Vec<ProjectMembershipRecord>, AppError> {
         self.repo.list_project_members(&self.pool, project_id).await
     }
 
+    pub async fn list_project_members_detail(&self, project_id: Uuid) -> Result<Vec<ProjectMemberDetail>, AppError> {
+        self.repo.list_project_members_detail(&self.pool, project_id).await
+    }
+
+    pub async fn remove_project_member(&self, project_id: Uuid, user_id: Uuid) -> Result<bool, AppError> {
+        let mut tx = self.pool.begin().await
+            .map_err(|e| AppError::database(format!("Failed to begin transaction: {}", e)))?;
+
+        let deleted = self.repo.delete_project_membership(&mut tx, user_id, project_id).await?;
+
+        tx.commit().await
+            .map_err(|e| AppError::database(format!("Failed to commit transaction: {}", e)))?;
+
+        Ok(deleted)
+    }
+
     pub async fn list_service_members(&self, service_id: Uuid) -> Result<Vec<ServiceMembershipRecord>, AppError> {
         self.repo.list_service_members(&self.pool, service_id).await
+    }
+
+    pub async fn list_service_members_detail(&self, service_id: Uuid) -> Result<Vec<ServiceMemberDetail>, AppError> {
+        self.repo.list_service_members_detail(&self.pool, service_id).await
+    }
+
+    pub async fn remove_service_member(&self, service_id: Uuid, user_id: Uuid) -> Result<bool, AppError> {
+        let mut tx = self.pool.begin().await
+            .map_err(|e| AppError::database(format!("Failed to begin transaction: {}", e)))?;
+
+        let deleted = self.repo.delete_service_membership(&mut tx, user_id, service_id).await?;
+
+        tx.commit().await
+            .map_err(|e| AppError::database(format!("Failed to commit transaction: {}", e)))?;
+
+        Ok(deleted)
     }
 }
 

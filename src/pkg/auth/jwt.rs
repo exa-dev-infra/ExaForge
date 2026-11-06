@@ -150,13 +150,43 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let user = AuthenticatedUser::from_request_parts(parts, state).await?;
-        if user.role != "admin" {
+        if user.role != "admin" && user.role != "super_admin" {
             return Err(AppError::forbidden(
                 "Forbidden: Admin privileges required",
                 crate::constants::codes::CODE_FORBIDDEN,
             ));
         }
         Ok(AdminUser(user))
+    }
+}
+
+/// Extractor for routes that strictly require the `super_admin` role.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SuperAdminUser(pub AuthenticatedUser);
+
+impl std::ops::Deref for SuperAdminUser {
+    type Target = AuthenticatedUser;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for SuperAdminUser
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let user = AuthenticatedUser::from_request_parts(parts, state).await?;
+        if user.role != "super_admin" {
+            return Err(AppError::forbidden(
+                "Forbidden: Super Admin privileges required",
+                crate::constants::codes::CODE_FORBIDDEN,
+            ));
+        }
+        Ok(SuperAdminUser(user))
     }
 }
 

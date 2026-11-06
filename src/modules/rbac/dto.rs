@@ -6,7 +6,20 @@ use validator::Validate;
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SystemRole {
     SuperAdmin,
-    User,
+    Admin,
+    Developer,
+    Viewer,
+}
+
+impl ToString for SystemRole {
+    fn to_string(&self) -> String {
+        match self {
+            SystemRole::SuperAdmin => "super_admin".to_string(),
+            SystemRole::Admin => "admin".to_string(),
+            SystemRole::Developer => "developer".to_string(),
+            SystemRole::Viewer => "viewer".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -54,6 +67,40 @@ pub struct ServiceMembershipRecord {
     pub user_id: Uuid,
     pub project_id: Uuid,
     pub service_id: Uuid,
+    pub role: String,
+    pub can_deploy_staging_only: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct RoleRecord {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub permissions: serde_json::Value,
+    pub is_system: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct ProjectMemberDetail {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub project_id: Uuid,
+    pub user_name: String,
+    pub user_email: String,
+    pub role: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct ServiceMemberDetail {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub project_id: Uuid,
+    pub service_id: Uuid,
+    pub user_name: String,
+    pub user_email: String,
     pub role: String,
     pub can_deploy_staging_only: bool,
     pub created_at: DateTime<Utc>,

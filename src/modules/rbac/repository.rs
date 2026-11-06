@@ -3,10 +3,15 @@ use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::pkg::errors::AppError;
-use super::dto::{ProjectMembershipRecord, ServiceMembershipRecord};
+use super::dto::{
+    ProjectMemberDetail, ProjectMembershipRecord, RoleRecord, ServiceMemberDetail,
+    ServiceMembershipRecord,
+};
 
 #[async_trait]
 pub trait RbacRepository: Send + Sync {
+    async fn list_roles(&self, pool: &PgPool) -> Result<Vec<RoleRecord>, AppError>;
+
     async fn upsert_project_membership(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -27,6 +32,12 @@ pub trait RbacRepository: Send + Sync {
         pool: &PgPool,
         project_id: Uuid,
     ) -> Result<Vec<ProjectMembershipRecord>, AppError>;
+
+    async fn list_project_members_detail(
+        &self,
+        pool: &PgPool,
+        project_id: Uuid,
+    ) -> Result<Vec<ProjectMemberDetail>, AppError>;
 
     async fn delete_project_membership(
         &self,
@@ -58,6 +69,12 @@ pub trait RbacRepository: Send + Sync {
         service_id: Uuid,
     ) -> Result<Vec<ServiceMembershipRecord>, AppError>;
 
+    async fn list_service_members_detail(
+        &self,
+        pool: &PgPool,
+        service_id: Uuid,
+    ) -> Result<Vec<ServiceMemberDetail>, AppError>;
+
     async fn delete_service_membership(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -70,6 +87,17 @@ pub struct PostgresRbacRepository;
 
 #[async_trait]
 impl RbacRepository for PostgresRbacRepository {
+    async fn list_roles(&self, pool: &PgPool) -> Result<Vec<RoleRecord>, AppError> {
+        let records = sqlx::query_as::<_, RoleRecord>(
+            "SELECT id, name, description, permissions, is_system, created_at FROM roles ORDER BY is_system DESC, id ASC"
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::database(format!("Failed to list roles: {}", e)))?;
+
+        Ok(records)
+    }
+
     async fn upsert_project_membership(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -126,6 +154,28 @@ impl RbacRepository for PostgresRbacRepository {
         .fetch_all(pool)
         .await
         .map_err(|e| AppError::database(format!("Failed to list project members: {}", e)))?;
+
+        Ok(records)
+    }
+
+    async fn list_project_members_detail(
+        &self,
+        pool: &PgPool,
+        project_id: Uuid,
+    ) -> Result<Vec<ProjectMemberDetail>, AppError> {
+        let records = sqlx::query_as::<_, ProjectMemberDetail>(
+            r#"
+            SELECT pm.id, pm.user_id, pm.project_id, u.name as user_name, u.email as user_email, pm.role, pm.created_at
+            FROM project_memberships pm
+            JOIN users u ON pm.user_id = u.id
+            WHERE pm.project_id = $1
+            ORDER BY pm.created_at DESC
+            "#
+        )
+        .bind(project_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::database(format!("Failed to list project member details: {}", e)))?;
 
         Ok(records)
     }
@@ -207,6 +257,28 @@ impl RbacRepository for PostgresRbacRepository {
         .fetch_all(pool)
         .await
         .map_err(|e| AppError::database(format!("Failed to list service members: {}", e)))?;
+
+        Ok(records)
+    }
+
+    async fn list_service_members_detail(
+        &self,
+        pool: &PgPool,
+        service_id: Uuid,
+    ) -> Result<Vec<ServiceMemberDetail>, AppError> {
+        let records = sqlx::query_as::<_, ServiceMemberDetail>(
+            r#"
+            SELECT sm.id, sm.user_id, sm.project_id, sm.service_id, u.name as user_name, u.email as user_email, sm.role, sm.can_deploy_staging_only, sm.created_at
+            FROM service_memberships sm
+            JOIN users u ON sm.user_id = u.id
+            WHERE sm.service_id = $1
+            ORDER BY sm.created_at DESC
+            "#
+        )
+        .bind(service_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::database(format!("Failed to list service member details: {}", e)))?;
 
         Ok(records)
     }

@@ -17,6 +17,7 @@ pub struct PipelineConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConcurrencyConfig {
+    #[serde(default)]
     pub group: String,
     #[serde(default)]
     pub cancel_in_progress: bool,
@@ -49,13 +50,16 @@ fn default_timeout() -> u64 {
 
 /// Parses pipeline config from YAML or TOML content
 pub fn parse_pipeline_config(raw_content: &str) -> Result<PipelineConfig, AppError> {
-    // Try YAML first
-    if let Ok(config) = serde_yaml::from_str::<PipelineConfig>(raw_content) {
-        return Ok(config);
+    match serde_yaml::from_str::<PipelineConfig>(raw_content) {
+        Ok(config) => Ok(config),
+        Err(yaml_err) => match toml::from_str::<PipelineConfig>(raw_content) {
+            Ok(config) => Ok(config),
+            Err(_) => Err(AppError::bad_request(
+                format!("Failed to parse pipeline config (YAML): {}", yaml_err),
+                "INVALID_CONFIG",
+            )),
+        },
     }
-    // Try TOML fallback
-    toml::from_str::<PipelineConfig>(raw_content)
-        .map_err(|e| AppError::bad_request(format!("Failed to parse pipeline config (YAML/TOML): {}", e), "INVALID_CONFIG"))
 }
 
 /// Interpolates `${VAR_NAME}` placeholders in a string using variables map

@@ -69,6 +69,7 @@ impl PipelineService {
         let default_config = r#"
 name: Default Pipeline
 concurrency:
+  group: default
   cancel_in_progress: true
 jobs:
   build:
@@ -83,7 +84,8 @@ jobs:
         let config_str = pipeline_config_raw.unwrap_or(default_config);
         let config: PipelineConfig = parse_pipeline_config(config_str)?;
 
-        let concurrency_group = config.concurrency.as_ref().map(|c| c.group.clone())
+        let concurrency_group = config.concurrency.as_ref()
+            .and_then(|c| if c.group.is_empty() || c.group == "default" { None } else { Some(c.group.clone()) })
             .unwrap_or_else(|| format!("{}-{}", service.slug, git_ref));
         let cancel_in_progress = config.concurrency.as_ref().map(|c| c.cancel_in_progress).unwrap_or(false);
 

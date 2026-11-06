@@ -9,11 +9,11 @@ Dokumen ini berisi pedoman permanen untuk AI Coding Assistant saat berinteraksi 
 Setiap agen yang bekerja pada repository ini **WAJIB** mematuhi siklus task management berikut secara mandiri tanpa perlu diingatkan oleh pengguna:
 
 1. **Target Project ID**:
-   - Target Project ID resmi untuk repository **ExaForge** di sistem Task Management adalah **Project ID: 5** (`name: Template` / ExaForge CI/CD Engine).
-   - Setiap pembuatan task baru (`create_task`), **WAJIB menyertakan `project_id: 5`** serta tags `["exaforge", "cicd", "controller", "agent", "rust"]`.
+   - Target Project ID resmi untuk repository **ExaForge** di sistem Task Management adalah **Project ID: 14** (`name: ExaForge`, `color: #f97316`).
+   - Setiap pembuatan task baru (`create_task`), **WAJIB menyertakan `project_id: 14`** serta tags `["exaforge", "cicd", "controller", "agent", "rust"]`.
 
 2. **Pencarian & Pembuatan Task Aktif**:
-   - Setiap kali user meminta penambahan fitur, perbaikan bug, atau enhancement baru: **selalu cari task aktif terlebih dahulu** menggunakan tool `list_tasks` (filter `project_id: 5`, status `in_progress` / `todo` atau keyword pencarian).
+   - Setiap kali user meminta penambahan fitur, perbaikan bug, atau enhancement baru: **selalu cari task aktif terlebih dahulu** menggunakan tool `list_tasks` (filter `project_id: 14`, status `in_progress` / `todo` atau keyword pencarian).
    - Jika task untuk pekerjaan tersebut belum ada, **otomatis buatkan task baru** (`create_task`) dengan status `in_progress`, cantumkan deskripsi jelas, dan pecah menjadi checklist `subtasks`.
 
 3. **Penyelesaian & Logging Progres**:

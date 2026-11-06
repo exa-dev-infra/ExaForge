@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Demo - Real-time Updates</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input, button {
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        input {
+            flex: 1;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .messages {
+            padding: 20px 30px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .message {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .message-event {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .message-data {
+            color: #4b5563;
+            word-wrap: break-word;
+        }
+
+        .message-time {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+
+        .stats {
+            padding: 20px 30px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .stat {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📡 SSE Real-time Demo</h1>
+        <div class="status disconnected" id="status">Disconnected</div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <input type="text" id="token" placeholder="Enter JWT Token"/>
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+        <div class="control-group">
+            <input type="text" id="testMessage" placeholder="Test message"/>
+            <button id="sendTestBtn" disabled>Send Test Message</button>
+        </div>
+    </div>
+
+    <div class="messages" id="messages">
+        <div class="message">
+            <div class="message-event">ℹ️ Info</div>
+            <div class="message-data">Enter your JWT token and click Connect to start receiving real-time updates.</div>
+            <div class="message-time">Waiting to connect...</div>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="messageCount">0</div>
+            <div class="stat-label">Messages Received</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="connectionTime">--</div>
+            <div class="stat-label">Connection Time</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let eventSource = null;
+    let messageCount = 0;
+    let connectionStartTime = null;
+    let connectionTimer = null;
+
+    const elements = {
+        token: document.getElementById('token'),
+        connectBtn: document.getElementById('connectBtn'),
+        disconnectBtn: document.getElementById('disconnectBtn'),
+        sendTestBtn: document.getElementById('sendTestBtn'),
+        status: document.getElementById('status'),
+        messages: document.getElementById('messages'),
+        messageCountEl: document.getElementById('messageCount'),
+        connectionTimeEl: document.getElementById('connectionTime'),
+        testMessage: document.getElementById('testMessage')
+    };
+
+    // Connect to SSE
+    elements.connectBtn.addEventListener('click', () => {
+        const token = elements.token.value.trim();
+
+        if (!token) {
+            addMessage('error', 'Error', 'Please enter a JWT token');
+            return;
+        }
+
+        connect(token);
+    });
+
+    // Disconnect from SSE
+    elements.disconnectBtn.addEventListener('click', () => {
+        disconnect();
+    });
+
+    // Send test message
+    elements.sendTestBtn.addEventListener('click', async () => {
+        const message = elements.testMessage.value.trim();
+        const token = elements.token.value.trim();
+
+        try {
+            const response = await fetch('http://localhost:3000/sse/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({message: message || 'Test message'})
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                elements.testMessage.value = '';
+            }
+        } catch (error) {
+            addMessage('error', 'Error', `Failed to send test message: ${error.message}`);
+        }
+    });
+
+    function connect(token) {
+        // Close existing connection
+        if (eventSource) {
+            disconnect();
+        }
+
+        // Clear messages
+        elements.messages.innerHTML = '';
+        messageCount = 0;
+        updateMessageCount();
+
+        // Create new connection
+        eventSource = new EventSource(`http://localhost:3000/sse/stream`, {
+            withCredentials: true
+        });
+
+        // Note: EventSource doesn't support custom headers directly
+        // You need to send token via query param or use a proxy
+        // For demo purposes, ensure your backend accepts the token appropriately
+
+        connectionStartTime = Date.now();
+        startConnectionTimer();
+
+        // Connection opened
+        eventSource.onopen = () => {
+            updateStatus(true);
+            addMessage('system', 'Connected', 'Successfully connected to SSE stream');
+            elements.connectBtn.disabled = true;
+            elements.disconnectBtn.disabled = false;
+            elements.sendTestBtn.disabled = false;
+        };
+
+        // Handle connected event
+        eventSource.addEventListener('connected', (e) => {
+            const data = JSON.parse(e.data);
+            addMessage('connected', 'Connection Established', JSON.stringify(data, null, 2));
+        });
+
+        // Handle custom events - you can add more as needed
+        eventSource.addEventListener('notification', (e) => {
+            const data = JSON.parse(e.data);
+            addMessage('notification', '🔔 Notification', JSON.stringify(data, null, 2));
+        });
+
+        eventSource.addEventListener('test', (e) => {
+            const data = JSON.parse(e.data);
+            addMessage('test', '🧪 Test Message', JSON.stringify(data, null, 2));
+        });
+
+        eventSource.addEventListener('announcement', (e) => {
+            const data = JSON.parse(e.data);
+            addMessage('announcement', '📢 Announcement', JSON.stringify(data, null, 2));
+        });
+
+        // Handle all messages
+        eventSource.onmessage = (e) => {
+            addMessage('message', 'Message', e.data);
+        };
+
+        // Handle errors
+        eventSource.onerror = (error) => {
+            console.error('SSE Error:', error);
+            addMessage('error', '❌ Connection Error', 'Lost connection to server. Attempting to reconnect...');
+
+            if (eventSource.readyState === EventSource.CLOSED) {
+                updateStatus(false);
+                stopConnectionTimer();
+                elements.connectBtn.disabled = false;
+                elements.disconnectBtn.disabled = true;
+                elements.sendTestBtn.disabled = true;
+            }
+        };
+    }
+
+    function disconnect() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+            updateStatus(false);
+            stopConnectionTimer();
+            addMessage('system', 'Disconnected', 'Connection closed');
+            elements.connectBtn.disabled = false;
+            elements.disconnectBtn.disabled = true;
+            elements.sendTestBtn.disabled = true;
+        }
+    }
+
+    function addMessage(type, event, data) {
+        messageCount++;
+        updateMessageCount();
+
+        const messageEl = document.createElement('div');
+        messageEl.className = 'message';
+        messageEl.innerHTML = `
+                <div class="message-event">${event}</div>
+                <div class="message-data">${data}</div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+
+        elements.messages.insertBefore(messageEl, elements.messages.firstChild);
+
+        // Keep only last 50 messages
+        while (elements.messages.children.length > 50) {
+            elements.messages.removeChild(elements.messages.lastChild);
+        }
+    }
+
+    function updateStatus(connected) {
+        elements.status.textContent = connected ? 'Connected' : 'Disconnected';
+        elements.status.className = connected ? 'status connected' : 'status disconnected';
+    }
+
+    function updateMessageCount() {
+        elements.messageCountEl.textContent = messageCount;
+    }
+
+    function startConnectionTimer() {
+        stopConnectionTimer();
+        connectionTimer = setInterval(() => {
+            if (connectionStartTime) {
+                const elapsed = Math.floor((Date.now() - connectionStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                elements.connectionTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+
+    function stopConnectionTimer() {
+        if (connectionTimer) {
+            clearInterval(connectionTimer);
+            connectionTimer = null;
+            elements.connectionTimeEl.textContent = '--';
+        }
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        disconnect();
+    });
+</script>
+</body>
+</html>

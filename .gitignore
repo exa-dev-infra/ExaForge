@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+target/
+
+# Environment Variables
+.env
+.env.local
+
+# Build outputs
+dist/
+build/
+*.class
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / Editors
+.DS_Store
+.idea/
+.vscode/

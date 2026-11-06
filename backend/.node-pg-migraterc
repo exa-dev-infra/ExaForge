@@ -1,0 +1,10 @@
+{
+  "database-url-var": "DATABASE_URL",
+  "migrations-dir": "migrations",
+  "dir": "migrations",
+  "direction": "up",
+  "count": 1,
+  "timestamp": true,
+  "migration-file-language": "ts",
+  "migrations-table": "pgmigrations"
+}

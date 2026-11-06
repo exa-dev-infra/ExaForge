@@ -81,6 +81,10 @@ impl AppError {
         Self::Internal(message.into())
     }
 
+    pub fn database(message: impl Into<String>) -> Self {
+        Self::Internal(message.into())
+    }
+
     // Specific domain errors
     pub fn user_not_found() -> Self {
         Self::NotFound(
@@ -124,10 +128,7 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
         if let Some(code) = db_err.code() {
             match code.as_ref() {
                 "23505" => {
-                    // Unique constraint violation (SQLSTATE 23505)
                     let constraint = db_err.constraint().unwrap_or("");
-
-                    // 1. Check explicit developer-defined mapping in constants::database
                     if let Some((field, sem_code)) =
                         crate::constants::database::lookup_unique_constraint(constraint)
                     {
@@ -138,7 +139,6 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
                         );
                     }
 
-                    // 2. Auto-deduce field name from PostgreSQL standard naming: <table>_<column>_key
                     let parts: Vec<&str> = constraint.split('_').collect();
                     if parts.len() >= 3 && parts.last() == Some(&"key") {
                         let field = parts[parts.len() - 2];
@@ -156,10 +156,7 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
                     );
                 }
                 "23503" => {
-                    // Foreign key violation (SQLSTATE 23503)
                     let constraint = db_err.constraint().unwrap_or("");
-
-                    // 1. Check explicit developer-defined mapping in constants::database
                     if let Some(entity) =
                         crate::constants::database::lookup_foreign_key_constraint(constraint)
                     {
@@ -170,7 +167,6 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
                         );
                     }
 
-                    // 2. Auto-deduce from PostgreSQL standard naming: <table>_<column>_fkey
                     let parts: Vec<&str> = constraint.split('_').collect();
                     if parts.len() >= 3 && parts.last() == Some(&"fkey") {
                         let field = parts[parts.len() - 2];
@@ -188,7 +184,6 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
                     );
                 }
                 "23502" => {
-                    // Not-null constraint violation (SQLSTATE 23502)
                     return (
                         StatusCode::BAD_REQUEST,
                         CODE_BAD_REQUEST.to_string(),
@@ -196,7 +191,6 @@ pub fn parse_database_error(err: &sqlx::Error) -> (StatusCode, String, String) {
                     );
                 }
                 "23514" => {
-                    // Check constraint violation (SQLSTATE 23514)
                     return (
                         StatusCode::BAD_REQUEST,
                         CODE_BAD_REQUEST.to_string(),

@@ -1,14 +1,14 @@
 use aes_gcm::{
-    aead::{Aead, KeyInit},
+    aead::{Aead, KeyInit as AesKeyInit},
     Aes256Gcm, Key, Nonce,
 };
-use hmac::{Hmac, Mac};
+use hmac::Mac;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
 use crate::pkg::errors::AppError;
 
-type HmacSha256 = Hmac<Sha256>;
+type HmacSha256 = hmac::Hmac<Sha256>;
 
 /// Derives a consistent 32-byte AES-256 key from any input string.
 /// If valid 64-char hex, decodes to 32 bytes; otherwise hashes with SHA-256.
@@ -114,7 +114,7 @@ pub fn verify_hmac_sha256(payload: &[u8], secret: &str, signature_header: &str) 
         Err(_) => return false,
     };
 
-    let mut mac = match HmacSha256::new_from_slice(secret.as_bytes()) {
+    let mut mac = match <HmacSha256 as Mac>::new_from_slice(secret.as_bytes()) {
         Ok(m) => m,
         Err(_) => return false,
     };

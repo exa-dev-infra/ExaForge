@@ -15,6 +15,9 @@ pub struct AppConfig {
     // Database
     pub database_url: String,
 
+    // Master Key for Secret Encryption (AES-256-GCM)
+    pub master_key: String,
+
     // Redis
     pub redis_enabled: bool,
     pub redis_url: String,
@@ -58,7 +61,7 @@ impl AppConfig {
         dotenvy::dotenv().ok();
 
         // 1. Application & Server
-        let app_name = env::var("APP_NAME").unwrap_or_else(|_| "template-rust-api".to_string());
+        let app_name = env::var("APP_NAME").unwrap_or_else(|_| "exaforge".to_string());
         let environment = env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
 
         let host = env::var("SERVER_HOST")
@@ -87,6 +90,11 @@ impl AppConfig {
                 "postgres://{}:{}@{}:{}/{}?sslmode={}",
                 user, pass, host, port, name, ssl
             )
+        });
+
+        // Master Key for AES-256-GCM
+        let master_key = env::var("EXAFORGE_MASTER_KEY").unwrap_or_else(|_| {
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()
         });
 
         // 4. Redis URL
@@ -195,7 +203,7 @@ impl AppConfig {
             .and_then(|v| v.parse().ok())
             .unwrap_or(2);
 
-        let jwt_issuer = env::var("JWT_ISSUER").unwrap_or_else(|_| "template-rust".to_string());
+        let jwt_issuer = env::var("JWT_ISSUER").unwrap_or_else(|_| "exaforge".to_string());
 
         let cookie_secure = env::var("COOKIE_SECURE")
             .map(|v| v.to_lowercase() == "true")
@@ -230,6 +238,7 @@ impl AppConfig {
             log_level,
             log_file,
             database_url,
+            master_key,
             redis_enabled,
             redis_url,
             rabbitmq_enabled,

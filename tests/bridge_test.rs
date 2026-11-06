@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use template_rust::{
+use exaforge::{
     config::AppConfig,
     pkg::realtime::{
         bridge::{LocalBridge, RealtimeBridge},

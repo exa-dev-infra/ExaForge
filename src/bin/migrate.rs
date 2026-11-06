@@ -1,6 +1,6 @@
 use chrono::Utc;
 use std::{env, fs, path::Path};
-use template_rust::{
+use exaforge::{
     config::AppConfig,
     database::postgres::{
         create_postgres_pool, revert_last_migration, revert_migration, run_migrations,

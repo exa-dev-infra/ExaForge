@@ -1,4 +1,4 @@
-use template_rust::pkg::auth::{
+use exaforge::pkg::auth::{
     jwt::{generate_token_pair, verify_access_token},
     password::{hash_password, verify_password},
     token_hash::hash_token,

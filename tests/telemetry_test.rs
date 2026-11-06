@@ -1,4 +1,4 @@
-use template_rust::{
+use exaforge::{
     config::AppConfig,
     pkg::telemetry::{init_telemetry, shutdown_telemetry},
 };

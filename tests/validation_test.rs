@@ -3,7 +3,7 @@ use axum::{
     extract::{FromRequest, FromRequestParts, Request},
     http::header::CONTENT_TYPE,
 };
-use template_rust::{
+use exaforge::{
     modules::{
         auth::dto::{ChangePasswordRequest, LoginRequest, RegisterRequest},
         user::dto::{

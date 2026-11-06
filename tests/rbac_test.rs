@@ -2,7 +2,7 @@ use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, Request},
 };
-use template_rust::pkg::auth::jwt::{generate_token_pair, AdminUser, OptionalAuthUser};
+use exaforge::pkg::auth::jwt::{generate_token_pair, AdminUser, OptionalAuthUser};
 use uuid::Uuid;
 
 #[tokio::test]

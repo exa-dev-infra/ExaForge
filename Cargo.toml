@@ -27,6 +27,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # Database & Migrations
 sqlx = { version = "0.8.0", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
 redis = { version = "0.27.6", features = ["tokio-comp"] }
+lapin = "2.3.4"
 
 # Serialization & Validation
 serde = { version = "1.0.203", features = ["derive"] }
@@ -38,6 +39,10 @@ validator = { version = "0.18.1", features = ["derive"] }
 # Structured Logging & Tracing
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
+tracing-opentelemetry = "0.28.0"
+opentelemetry = "0.27.1"
+opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27.0", features = ["grpc-tonic"] }
 
 # Auth, Security & Encryption
 aes-gcm = "0.10.3"

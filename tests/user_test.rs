@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::sync::Arc;
-use template_rust::{
+use exaforge::{
     modules::{
         auth::dto::SessionResponse,
         auth::repository::AuthRepository,
@@ -173,7 +173,7 @@ impl AuthRepository for MockAuthRepo {
         &self,
         _pool: &PgPool,
         _hash: &str,
-    ) -> Result<Option<template_rust::modules::auth::repository::RefreshTokenRecord>, AppError>
+    ) -> Result<Option<exaforge::modules::auth::repository::RefreshTokenRecord>, AppError>
     {
         Ok(None)
     }

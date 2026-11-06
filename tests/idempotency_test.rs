@@ -1,6 +1,6 @@
 use axum::{body::Bytes, http::StatusCode};
 use std::time::Duration;
-use template_rust::pkg::idempotency::{IdempotencyEntry, IdempotencyStore};
+use exaforge::pkg::idempotency::{IdempotencyEntry, IdempotencyStore};
 
 #[tokio::test]
 async fn test_idempotency_store_lifecycle() {

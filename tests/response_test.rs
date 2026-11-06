@@ -1,5 +1,5 @@
 use serde_json::json;
-use template_rust::{
+use exaforge::{
     constants::codes::CODE_SUCCESS,
     pkg::response::{BaseResponse, PaginatedResponse},
 };

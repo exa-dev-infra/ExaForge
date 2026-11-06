@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod cache;
+pub mod crypto;
 pub mod errors;
 pub mod idempotency;
 pub mod logging;

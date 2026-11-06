@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tracing::info;
 
-use template_rust::{
+use exaforge::{
     build_app,
     config::AppConfig,
     database::postgres::{create_postgres_pool, run_migrations},
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = AppConfig::from_env();
 
     // 1. Initialize OpenTelemetry Tracer if enabled
-    let (otel_provider, otel_err) = match template_rust::pkg::telemetry::init_telemetry(&config) {
+    let (otel_provider, otel_err) = match exaforge::pkg::telemetry::init_telemetry(&config) {
         Ok(provider) => (provider, None),
         Err(err) => (None, Some(err)),
     };
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Initialize Realtime Hub with Distributed Bridge (Redis / RabbitMQ / Local)
     let hub = Arc::new(RealtimeHub::default());
-    let bridge = template_rust::pkg::realtime::create_realtime_bridge(&config, hub.sender()).await;
+    let bridge = exaforge::pkg::realtime::create_realtime_bridge(&config, hub.sender()).await;
     hub.set_bridge(bridge).await;
 
     // 4. Build Axum Router
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     info!("Server shutdown completed cleanly");
-    template_rust::pkg::telemetry::shutdown_telemetry();
+    exaforge::pkg::telemetry::shutdown_telemetry();
     Ok(())
 }
 

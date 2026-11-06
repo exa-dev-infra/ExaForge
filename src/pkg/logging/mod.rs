@@ -10,7 +10,7 @@ use crate::config::AppConfig;
 pub fn init_logger(config: &AppConfig, otel_provider: Option<&TracerProvider>) {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new(format!(
-            "template_rust={},tower_http=info",
+            "exaforge={},tower_http=info",
             config.log_level
         ))
     });

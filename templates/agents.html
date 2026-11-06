@@ -29,7 +29,8 @@
         }
     },
     copyCommand() {
-        const cmd = `exaforge agent --controller-url ws://${window.location.host}/api/v1/agents/ws --token ${this.registeredToken} --tags ${this.agentTags}`;
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const cmd = `exaforge agent --controller-url ${protocol}//${window.location.host}/api/v1/agents/ws --token ${this.registeredToken} --tags ${this.agentTags}`;
         navigator.clipboard.writeText(cmd);
         this.copied = true;
         setTimeout(() => this.copied = false, 2500);
@@ -154,7 +155,7 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Run Agent CLI Command</label>
                         <div class="p-3 bg-[#0d1117] border border-[#30363d] rounded-lg font-mono text-xs text-slate-300 select-all"
-                            x-text="`exaforge agent --controller-url ws://${window.location.host}/api/v1/agents/ws --token ${registeredToken} --tags ${agentTags}`"></div>
+                            x-text="`exaforge agent --controller-url ${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/agents/ws --token ${registeredToken} --tags ${agentTags}`"></div>
                     </div>
 
                     <div class="flex items-center justify-between pt-2">

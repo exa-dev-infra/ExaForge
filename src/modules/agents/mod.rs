@@ -24,7 +24,7 @@ pub fn router(service: Arc<AgentService>, realtime_hub: Arc<RealtimeHub>, pool: 
     };
 
     Router::new()
-        .route("/api/v1/agents", get(handler::list_agents_handler).post(handler::register_agent_handler))
-        .route("/api/v1/agents/ws", get(handler::agent_ws_handler))
+        .route("/agents", get(handler::list_agents_handler).post(handler::register_agent_handler))
+        .route("/agents/ws", get(handler::agent_ws_handler))
         .with_state(ctx)
 }

@@ -9,7 +9,7 @@ pub use service::WebhookService;
 
 pub fn router(service: Arc<WebhookService>) -> Router {
     Router::new()
-        .route("/api/v1/webhooks/git", post(handler::git_webhook_handler))
+        .route("/webhooks/git", post(handler::git_webhook_handler))
         .with_state(service)
 }
 

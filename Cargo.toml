@@ -1,0 +1,68 @@
+[package]
+name = "exaforge"
+version = "0.1.0"
+edition = "2021"
+description = "ExaForge: Lightweight Self-Hosted CI/CD Engine (Controller + Worker Agent)"
+
+[dependencies]
+# Web Framework & Async Runtime
+axum = { version = "0.7.5", features = ["ws", "macros", "multipart", "form"] }
+axum-extra = { version = "0.9.3", features = ["cookie"] }
+tokio = { version = "1.38.0", features = ["full", "process"] }
+tokio-stream = { version = "0.1.15", features = ["sync"] }
+tokio-tungstenite = { version = "0.23.1", features = ["rustls-tls-webpki-roots"] }
+tower = { version = "0.4.13", features = ["util"] }
+tower-http = { version = "0.5.2", features = ["cors", "trace", "request-id", "util", "fs"] }
+futures-util = { version = "0.3.30", default-features = false, features = ["sink", "std"] }
+async-trait = "0.1.80"
+
+# Template Engine (Embedded Server-Side Rendering)
+askama = { version = "0.12.1", features = ["with-axum"] }
+askama_axum = "0.4.0"
+
+# CLI
+clap = { version = "4.5.4", features = ["derive", "env"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+# Database & Migrations
+sqlx = { version = "0.8.0", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
+redis = { version = "0.27.6", features = ["tokio-comp"] }
+
+# Serialization & Validation
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+serde_yaml = "0.9.34"
+toml = "0.8.14"
+validator = { version = "0.18.1", features = ["derive"] }
+
+# Structured Logging & Tracing
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
+
+# Auth, Security & Encryption
+aes-gcm = "0.10.3"
+jsonwebtoken = "9.3.0"
+argon2 = { version = "0.5.3", features = ["std"] }
+sha2 = "0.10.8"
+hmac = "0.12.1"
+hex = "0.4.3"
+rand = "0.8.5"
+time = "0.3.36"
+
+# Process & File Utilities
+nix = { version = "0.29.0", features = ["process", "signal"] }
+glob = "0.3.1"
+uuid = { version = "1.8.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.38", features = ["serde"] }
+dotenvy = "0.15.7"
+thiserror = "1.0.61"
+
+[dev-dependencies]
+tokio-test = "0.4.4"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16
+panic = "abort"
+strip = true

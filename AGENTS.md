@@ -10,14 +10,14 @@ Setiap agen yang bekerja pada repository ini **WAJIB** mematuhi siklus task mana
 
 1. **Target Project ID**:
    - Target Project ID resmi untuk repository **ExaForge** di sistem Task Management adalah **Project ID: 5** (`name: Template` / ExaForge CI/CD Engine).
-   - Setiap pembuatan task baru (`create_task`), **WAJIB menyertakan `project_id: 5`** serta tags `["exaforge", "cicd", "controller", "agent"]`.
+   - Setiap pembuatan task baru (`create_task`), **WAJIB menyertakan `project_id: 5`** serta tags `["exaforge", "cicd", "controller", "agent", "rust"]`.
 
 2. **Pencarian & Pembuatan Task Aktif**:
    - Setiap kali user meminta penambahan fitur, perbaikan bug, atau enhancement baru: **selalu cari task aktif terlebih dahulu** menggunakan tool `list_tasks` (filter `project_id: 5`, status `in_progress` / `todo` atau keyword pencarian).
    - Jika task untuk pekerjaan tersebut belum ada, **otomatis buatkan task baru** (`create_task`) dengan status `in_progress`, cantumkan deskripsi jelas, dan pecah menjadi checklist `subtasks`.
 
 3. **Penyelesaian & Logging Progres**:
-   - Setelah pekerjaan selesai diimplementasikan, diverifikasi (build/test/lint lulus), dan siap di-commit/push, **otomatis perbarui progress dan status task**:
+   - Setelah pekerjaan selesai diimplementasikan, diverifikasi (`cargo check` / `cargo test` lulus), dan siap di-commit/push, **otomatis perbarui progress dan status task**:
      - Gunakan `log_task_progress` untuk mencatat catatan penyelesaian.
      - Update subtask yang selesai (`completed_subtask_ids`) dan ubah status task utama menjadi `done` (`update_task_status`).
 
@@ -26,32 +26,35 @@ Setiap agen yang bekerja pada repository ini **WAJIB** mematuhi siklus task mana
 
 ---
 
-## 🏗️ Standar Arsitektur & Template Konvensi (@exa31/create-stack)
+## 🏗️ Standar Arsitektur & Teknologi Repo (@exa31/create-stack template-rust)
 
-Repository ini disusun mengikuti arsitektur **Controller + Worker Agent** menggunakan template resmi `@exa31/create-stack`:
+Repository ini disusun menggunakan **100% Pure Rust** dengan pola arsitektur **Controller + Worker Agent** tanpa frontend SPA terpisah:
 
-### 1. Controller Server (`backend/`)
-- **Runtime & Framework**: Node.js 22+ / TypeScript (strict, CommonJS) + Express 5 REST API + Socket.io / WebSocket Server.
-- **Database**: PostgreSQL (pg Pool) dengan schema migrations via `node-pg-migrate` di `backend/migrations/`.
-- **Transactions 100% WAJIB untuk SEMUA Operasi Database**:
-  - **Operasi Mutasi (`INSERT`, `UPDATE`, `DELETE`)**: WAJIB dieksekusi via `this.withTransaction` (dari `BaseRepository`) atau `db.withTransaction(async (client) => ...)`.
-  - **Operasi Pembacaan (`SELECT`, query, get, list)**: WAJIB dieksekusi via `this.withReadOnlyTransaction` (dari `BaseRepository`) atau `db.withReadOnlyTransaction(async (client) => ...)`.
-  - Dilarang keras manual `BEGIN` / `COMMIT` atau query tanpa helper transaksi.
-- **Architecture Flow (Feature Modules)**:
-  `HTTP Request → module routes.ts → validate() (req.validated) → service.ts → repository.ts → db pool`.
-- **HTTP Response Envelope**:
-  Seluruh respons API **WAJIB** menggunakan envelope standar `ApiResponse` (`src/types/response.ts`):
-  `{ success: boolean, message: string, code: string, data: any, timestamp: string, requestId: string }`.
-  Kode respon wajib didefinisikan secara semantik di `src/constants/codes.ts` (`RESPONSE_CODES`).
-- **Validation**:
-  Seluruh endpoint divalidasi ketat pada boundary route menggunakan Zod schema melalui middleware `validate({ body, query, params })`.
-- **Code Style (ESLint)**:
-  No semicolons, single quotes (`avoidEscape: true`), 2 spaces indent, `comma-dangle: never`, space before function parenthesis (`function name () {}`).
+### 1. Unified Single Binary / Dual-Mode CLI
+- **`exaforge serve`**: Menjalankan Controller (HTTP Server Axum, Web Dashboard SSR via Askama, REST API, dan WebSocket Hub).
+- **`exaforge agent`**: Menjalankan Worker Agent daemon (koneksi outbound ke Controller via WebSocket, isolasi OS Process Group, incremental git cache, container build, log streaming baris demi baris dengan secret masking).
 
-### 2. Worker Agent (`worker/`)
-- **Runtime**: TypeScript / Node.js daemon.
-- **Networking**: Koneksi outbound ke Controller via WebSocket (mendukung agent di balik NAT/home network tanpa public IP).
-- **Process Group Isolation**: Setiap step dijalankan dalam OS Process Group (`setsid` / process group leader) agar pembatalan atau timeout dapat menterminasi seluruh process tree tanpa meninggalkan orphan/zombie.
-- **Incremental Git Cache**: Cache repo lokal per project/service menggunakan `git fetch` + `git reset --hard <sha>`.
-- **Dynamic Environment**: Dukungan file inject `$CI_ENV` dan output downstream `$CI_OUTPUT`.
-- **Log Streaming & Masking**: Menangkap `stdout`/`stderr` baris demi baris, melakukan masking rahasia (`***`), dan streaming real-time ke Controller.
+### 2. Frontend / UI: Embedded Server-Side Rendering (Askama)
+- Menggunakan **Askama Template Engine** (`askama` + `askama_axum`) untuk rendering HTML langsung di server (*zero frontend build steps / no node_modules*).
+- Tampilan modern Dark Mode menggunakan Tailwind CSS (CDN / embedded) + Alpine.js untuk interaktivitas real-time (live terminal log stream via WebSocket, status badge polling, modal input trigger).
+- Semua template disimpan di `templates/` (misal `base.html`, `dashboard.html`, `project.html`, `service.html`, `pipeline.html`, `secrets.html`).
+
+### 3. Backend & Core Engine (Axum + Tokio + SQLx)
+- **Runtime**: Tokio async runtime.
+- **Web Framework**: Axum 0.7 (`ws`, `macros`, `multipart`, `form`) + Tower HTTP + Axum Extra.
+- **Database**: PostgreSQL dengan SQLx pool dan migrasi SQL terkompilasi (`migrations/`).
+- **Database Transactions**:
+  - Semua operasi mutasi (`INSERT`, `UPDATE`, `DELETE`) **WAJIB** berada dalam transaksi (`pool.begin().await?`).
+  - Pure parameter passing: `&mut sqlx::Transaction<'_, sqlx::Postgres>`.
+- **Security & Kriptografi**:
+  - Enkripsi Secret at-rest: `AES-256-GCM` (32-byte master key, 12-byte IV unik, 16-byte auth tag).
+  - Autentikasi Pengguna: Argon2 password hashing + JWT session cookie / Bearer token.
+  - Webhook Git: HMAC SHA-256 verification.
+- **Process Group Isolation (Agent Engine)**:
+  - Setiap step command dieksekusi di dalam Process Group tersendiri (`nix::unistd::setpgid` / `libc::setsid`).
+  - Saat timeout atau menerima sinyal pembatalan, Agent mengirim `SIGTERM` / `SIGKILL` ke seluruh process group (`-pgid`) untuk mencegah orphan/zombie process.
+
+### 4. Logging & Error Handling
+- ❌ **DILARANG KERAS** menggunakan raw print: `println!`, `eprintln!`, `dbg!`.
+- ✅ **WAJIB** menggunakan `tracing::{info, warn, error, debug}`.
+- Semantic error codes didefinisikan secara terpusat di `src/constants/codes.rs`.

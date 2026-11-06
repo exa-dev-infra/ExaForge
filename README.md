@@ -1,220 +1,157 @@
-# 🦀 Rust Axum + SQLx Backend Starter Kit
+# ExaForge: Lightweight Self-Hosted CI/CD Engine
 
-Production-grade, asynchronous REST API starter kit built with **Rust**, **Axum 0.7**, and **SQLx (PostgreSQL)**, adhering to strict monorepo Clean Architecture guidelines, structured JSON logging, semantic error handling, and transactional database safety.
-
-> 📖 **Baru belajar Rust?** Baca panduan kilat sintaks, keyword (`pub`, `async`, lifetime `'a`), smart pointers (`Arc`, `Box`), dan bedah baris kode di:  
-> 👉 [**docs/RUST_LEARNING_GUIDE.md**](docs/RUST_LEARNING_GUIDE.md)
-
----
-
-## 🚀 Fitur Utama
-
-- **Web Framework**: [Axum 0.7](https://github.com/tokio-rs/axum) yang dibangun di atas ekosistem Tokio & Tower.
-- **Database & Migration**: [SQLx 0.8](https://github.com/launchbadge/sqlx) (PostgreSQL) dengan pure parameter passing dan migrasi SQL otomatis.
-- **Structured Logging**: `tracing` + `tracing-subscriber` dengan output JSON terstruktur per baris (Zero raw `println!`).
-- **Input Validation**: `validator` crate dengan custom Axum extractor (`ValidatedJson`).
-- **Semantic Error Handling**: Centralized error codes (`USER_NOT_FOUND`, `INVALID_CREDENTIALS`, etc.) dan format envelope API standar (`BaseResponse<T>`).
-- **Complete Auth & Refresh Token Flow**:
-  - **SHA-256 Token Hashing**: Token refresh disimpan dalam bentuk hash digest di database.
-  - **Token Reuse & Theft Detection**: Otomatis mendeteksi pemakaian ulang token lama dan mencabut seluruh sesi user demi keamanan.
-  - **Multi-session Management**: Manajemen sesi aktif per user-agent/IP, `logout`, `logout-all`, dan `change-password`.
-- **OpenTelemetry (OTEL)**: OTLP distributed tracing exporter via Tonic gRPC dengan W3C trace context propagation (terintegrasi dengan `tracing`).
-- **Distributed Realtime Bridge (Redis / RabbitMQ)**: Mendistribusikan event WebSocket & SSE ke seluruh replika container via Redis Pub/Sub (`realtime:broadcast`) atau RabbitMQ Fanout Exchange (`realtime.events`), dengan graceful fallback ke in-memory `local` mode.
-- **Environment Parity**: Selaras 100% dengan parameter konfigurasi backend monorepo (`template-golang`, `template-express`), mendukung standalone URL maupun granular host/port/credentials.
-- **Quality Gates**: `make check` (fmt-check, clippy linter, dan unit test suite).
+<p align="center">
+  <strong>Lightweight, high-performance, self-hosted CI/CD Engine built for high-velocity teams.</strong><br>
+  100% Pure Rust &bull; Controller + Worker Agent &bull; Process Group Isolation &bull; Askama SSR &bull; KEDA Zero-Scaling
+</p>
 
 ---
 
-## 📁 Struktur Direktori
+## 🚀 Key Features
 
-```text
-src/
-├── main.rs                   # Entrypoint server & graceful shutdown
-├── lib.rs                    # Router builder & app assembly
-├── config/                   # App configuration & environment loader
-├── constants/                # Semantic error & response codes
-├── database/                 # PostgreSQL connection pool & migrations
-├── pkg/                      # Reusable internal packages
-│   ├── auth/                 # JWT signing/verification & Argon2 hashing
-│   ├── errors/               # Centralized AppError & HTTP conversion
-│   ├── logging/              # Tracing JSON logger & Tower trace layer
-│   ├── realtime/             # Broadcast hub for WS & SSE
-│   ├── response/             # Standard BaseResponse & PaginatedResponse
-│   └── validation/           # ValidatedJson extractor
-└── modules/                  # Feature modules (Clean Architecture)
-    ├── auth/                 # DTO, repository, service, handler
-    ├── user/                 # Profile, list, and user management
-    └── realtime/             # WebSocket and SSE streaming handlers
-```
+- **Unified Single Binary / Dual-Mode CLI**:
+  - `exaforge serve`: Starts the Controller (HTTP Server Axum 0.7, Web Dashboard SSR via Askama, REST API, and WebSocket Agent Hub).
+  - `exaforge agent`: Starts a Worker Agent daemon connecting outbound to Controller via WebSocket (friendly to NAT and private networks without public IPs), advertising capability tags (`linux`, `docker`, `k8s`, `android`, `macos`).
+- **Embedded Server-Side Rendering (Askama)**:
+  - Zero JS build steps, zero npm, zero `node_modules` overhead.
+  - Modern Dark Mode dashboard powered by Tailwind CSS + Alpine.js for live terminal streaming.
+- **Granular Multi-Tier RBAC & Scoped Secrets**:
+  - Hierarchical scoping: **Global Secrets** &rarr; **Project Secrets** &rarr; **Service Secrets** (`project:service`).
+  - Roles: **Super Admin**, **Project Maintainer**, **Service Developer** (`coffee:fe` isolated from `coffee:be`), and **Viewer / QA** (read-only with staging deploy capability).
+  - Secrets encrypted at-rest using **AES-256-GCM** (32-byte master key, 12-byte IV, 16-byte auth tag).
+- **Git Webhook Receiver & Smart Pipeline Parser**:
+  - HMAC SHA-256 webhook signature verification.
+  - Multi-repo & Monorepo path filtering (e.g. `apps/fe/**`) and tag prefix routing (`fe-v*`).
+  - `.ci.yaml` and `.ci.toml` pipeline configuration parser with **DAG Topological Sorting**, cycle detection, and dynamic variable interpolation (`${VAR_NAME}`).
+- **Smart Queue & Concurrency Control**:
+  - Scoped concurrency groups (`deploy-coffee-be`) with `cancel_in_progress = true` to automatically abort stale builds.
+  - Offline agent queuing: pending jobs are held until an agent advertising matching capability tags connects.
+- **Robust Worker Execution Engine**:
+  - **Process Group Isolation**: Every step executes in its own OS Process Group (`setpgid`). Cancellations cleanly terminate the entire process tree (`-pgid` SIGTERM/SIGKILL) leaving zero zombie processes.
+  - **Incremental Git Cache**: Fast checkouts using mirror repositories and hard reset (`git fetch` + `git reset --hard <sha>`).
+  - **Dynamic Environment Injection**: `$CI_ENV` (intra-job) and `$CI_OUTPUT` (cross-job DAG dependency passing).
+  - **Built-in Directives**: Native shell scripts (`run`) and container build (`container_build`) with registry auth and multi-tag pushing.
+  - **Real-Time Secret Masking**: Live line-by-line `stdout`/`stderr` streaming with secret values masked as `***`.
 
 ---
 
-## ⚡ Quickstart
+## 🛠️ Quickstart
 
-### 1. Prasyarat
-- Rust toolchain (1.80+): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- PostgreSQL 16+ (atau gunakan `docker-compose up -d postgres`)
+### 1. Environment Setup
 
-### 2. Setup Environment
+Copy example environment variables:
 ```bash
 cp .env.example .env
 ```
+Ensure PostgreSQL is running (default `DATABASE_URL=postgres://postgres:postgres@localhost:54321/exaforge?sslmode=disable`).
 
-### 3. Menjalankan Server
+### 2. Start Controller Server
+
 ```bash
-# Jalankan langsung
-cargo run
-# atau via make
-make run
+# Start HTTP server, dashboard, and WebSocket hub on port 8080
+cargo run -- serve
 ```
+Open `http://localhost:8080` in your browser.  
+Default Admin Credentials: `admin` / `adminsecret123`.
 
-Server akan aktif di `http://localhost:8080`.
+### 3. Connect a Worker Agent
 
----
-
-## 🗄️ Database Migrations & Rollback
-
-Template ini mendukung migrasi bolak-balik (**Reversible Migrations**: `.up.sql` dan `.down.sql`) dengan SQLx:
-
+Register the agent in the Controller dashboard or obtain an agent token (`agt_*`), then start the worker daemon:
 ```bash
-# Jalankan seluruh migrasi yang belum diaplikasikan (Up)
-make migrate-up
-
-# Rollback 1 langkah migrasi terakhir (Down)
-make migrate-down
-
-# Buat migrasi baru berpasangan (.up.sql & .down.sql)
-make migrate-create name=add_items_table
-
-# Cek status migrasi yang telah diterapkan di database
-make migrate-status
+cargo run -- agent \
+  --controller-url ws://localhost:8080/api/v1/agents/ws \
+  --token agt_your_agent_token_here \
+  --name build-worker-01 \
+  --tags linux,docker,k8s
 ```
 
 ---
 
-## 🔐 API Endpoints Reference
+## 📜 Sample Pipeline Configuration (`.ci.yaml`)
 
-### 1. Root & Health Probes
-| Method | Endpoint | Proteksi | Deskripsi |
-|---|---|---|---|
-| `GET` | `/` | Publik | Welcome response dan server time |
-| `GET` | `/health` | Publik | Status komprehensif DB, Redis, RabbitMQ, Realtime, dan feature flags |
+```yaml
+name: "Production Pipeline"
 
-### 2. Auth & Security Endpoints (`/api/v1/auth`)
-| Method | Endpoint | Proteksi | Deskripsi |
-|---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Publik | Registrasi akun baru & set refresh token cookie |
-| `POST` | `/api/v1/auth/login` | Publik | Login & set HTTP-only refresh token cookie |
-| `POST` | `/api/v1/auth/refresh` | Cookie/Body | Rotasi token baru + deteksi pencurian token lama |
-| `POST` | `/api/v1/auth/logout` | Cookie/Body | Revokasi sesi aktif saat ini & bersihkan cookie |
-| `POST` | `/api/v1/auth/logout-all` | Bearer Token | Revokasi seluruh sesi login di semua device |
-| `POST` | `/api/v1/auth/change-password` | Bearer Token | Ubah password & otomatis revokasi seluruh sesi lama |
-| `GET` | `/api/v1/auth/sessions` | Bearer Token | Tampilkan riwayat device/sesi yang aktif |
-| `GET` | `/api/v1/auth/me` | Bearer Token | Dapatkan ringkasan profil user saat ini |
+concurrency:
+  group: "deploy-coffee-be"
+  cancel_in_progress: true
 
-### 3. User Self-Service & Admin CRUD (`/api/v1/users`)
-| Method | Endpoint | Proteksi | Deskripsi |
-|---|---|---|---|
-| `GET` | `/api/v1/users/profile` | Bearer Token | Ambil profil pengguna yang sedang login |
-| `PUT` | `/api/v1/users/profile` | Bearer Token | Update profil pengguna (nama, telepon) |
-| `GET` | `/api/v1/users` | Admin Only | List pengguna (paginasi `page`, `limit`, filter `search`, `role`, `is_active`) |
-| `GET` | `/api/v1/users/:id` | Admin Only | Ambil detail pengguna berdasarkan ID |
-| `POST` | `/api/v1/users` | Admin Only | Buat pengguna baru oleh admin (dengan transaksi & hashing) |
-| `PUT` | `/api/v1/users/:id` | Admin Only | Update data pengguna (nama, email, telepon, role, status aktif) |
-| `DELETE` | `/api/v1/users/:id` | Admin Only | Soft delete pengguna (`is_active = false` & cabut seluruh sesi) |
-| `DELETE` | `/api/v1/users/:id/hard` | Admin Only | Hard delete (hapus permanen dari database) |
+inputs:
+  app_name:
+    default: "coffee-backend"
+    description: "Application name"
+  rollout_timeout:
+    default: "300"
+    description: "Timeout for kubernetes rollout"
 
-### 4. Realtime Streaming & Examples (`/api/v1/realtime`)
-| Method | Endpoint | Proteksi | Deskripsi |
-|---|---|---|---|
-| `GET` | `/api/v1/realtime/ws` | Publik/Client | WebSocket duplex connection hub |
-| `GET` | `/api/v1/realtime/sse` | Publik/Client | Server-Sent Events downstream event stream |
-| `POST` | `/api/v1/realtime/broadcast` | Publik/Auth | Menerbitkan pesan broadcast ke seluruh client lokal & replika bridge |
+jobs:
+  lint:
+    name: "Linting"
+    tags: ["linux"]
+    steps:
+      - name: "Run Clippy"
+        run: "cargo clippy"
 
-### 5. Protected & Optional Example Endpoints
-| Method | Endpoint | Proteksi | Deskripsi |
-|---|---|---|---|
-| `GET` | `/api/v1/protected/data` | Bearer Token | Contoh endpoint proteksi standar (`AuthenticatedUser`) |
-| `GET` | `/api/v1/public-or-private` | Opsional | Contoh endpoint fleksibel (`OptionalAuthUser`) |
+  test:
+    name: "Unit & Integration Tests"
+    tags: ["linux", "docker"]
+    needs: ["lint"]
+    steps:
+      - name: "Test Execution"
+        run: "cargo test --all"
 
----
+  build:
+    name: "Container Image Build"
+    tags: ["linux", "docker"]
+    needs: ["test"]
+    steps:
+      - name: "Docker Build"
+        container_build:
+          image: "registry.company.com/${app_name}"
+          tags: ["latest", "${CI_COMMIT_SHA}"]
 
-## 🔁 Idempotency Key Handling
-Mendukung header `Idempotency-Key` atau `X-Idempotency-Key` pada mutasi `POST`, `PUT`, dan `PATCH`:
-- Menghindari duplikasi request pada retry jaringan.
-- Jika request sedang diproses, otomatis return `409 Conflict` (`IDEMPOTENCY_IN_FLIGHT`).
-- Jika request telah selesai, otomatis me-replay response asli beserta header `Idempotent-Replayed: true`.
-
----
-
-## 📡 OpenTelemetry (OTEL) Distributed Tracing
-
-Template ini siap dihubungkan ke OpenTelemetry Collector / Jaeger / Grafana Tempo:
-
-1. Di file `.env`, atur:
-   ```env
-   OTEL_ENABLED=true
-   OTEL_SERVICE_NAME=my-rust-service
-   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-   ```
-2. Seluruh trace request Axum, span HTTP, dan log event otomatis diekspor melalui gRPC Tonic ke OTLP endpoint dengan format W3C trace context.
-
----
-
-## 🌐 Distributed Realtime Bridge
-
-Saat aplikasi di-scale menjadi multi-container / multi-pod, WebSocket dan SSE didistribusikan antar replika melalui broker:
-
-| Bridge Mode (`REALTIME_BRIDGE`) | Deskripsi |
-|---|---|
-| `redis` (Default) | Memanfaatkan Redis Pub/Sub (`realtime:broadcast`) untuk fan-out antar instance. |
-| `rabbitmq` | Memanfaatkan RabbitMQ Fanout Exchange (`realtime.events`) dan antrean eksklusif per replika. |
-| `both` | Mempublikasikan ke Redis dan RabbitMQ secara simultan. |
-| `local` | In-memory broadcast (tokio channel) untuk mode offline / standalone development tanpa broker. |
-
-> **Catatan Resiliensi**: Jika broker yang dipilih tidak dapat dijangkau saat startup, aplikasi **tidak akan crash**, melainkan otomatis mendegradasi ke mode `local` dan mencatat warning terstruktur.
-
----
-
-## ⚙️ Environment Variables Reference
-
-Konfigurasi `.env` selaras penuh dengan template backend lain di monorepo (`template-golang`):
-
-| Variable | Default | Deskripsi |
-|---|---|---|
-| `APP_NAME` / `APP_ENV` | `template-rust` / `development` | Nama dan environment aplikasi |
-| `SERVER_HOST` / `SERVER_PORT` | `0.0.0.0` / `8080` | Host dan port listener Axum |
-| `LOG_LEVEL` | `info` | Level log (`trace`, `debug`, `info`, `warn`, `error`) |
-| `DATABASE_URL` | Postgre connection string | Jika kosong, disusun otomatis dari `DB_HOST`, `DB_PORT`, dsb. |
-| `REDIS_URL` | `redis://127.0.0.1:6379` | Jika kosong, disusun otomatis dari `REDIS_HOST`, `REDIS_PORT`, dsb. |
-| `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | Jika kosong, disusun otomatis dari `RABBITMQ_*` |
-| `REALTIME_BRIDGE` | `redis` | Broker realtime: `redis`, `rabbitmq`, `both`, atau `local` |
-| `JWT_ACCESS_SECRET` | *secret-key* | Kunci rahasia untuk HMAC sign access token |
-| `JWT_REFRESH_SECRET` | *secret-key* | Kunci rahasia untuk HMAC sign refresh token |
-| `OTEL_ENABLED` | `false` | Mengaktifkan/menonaktifkan OpenTelemetry tracing |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`| `http://localhost:4317` | Alamat OTLP gRPC endpoint |
-
----
-
-## 🧪 Testing & Quality Gates
-
-```bash
-# Jalankan seluruh quality gate (fmt, clippy, test)
-make check
-
-# Jalankan test suite saja
-make test
-
-# Format kode
-make fmt
+  deploy:
+    name: "Kubernetes Deploy"
+    tags: ["linux", "k8s"]
+    needs: ["build"]
+    steps:
+      - name: "Kubectl Rollout"
+        run: "kubectl rollout status deployment/${app_name} --timeout=${rollout_timeout}s"
 ```
 
 ---
 
-## 🐳 Docker Deployment
+## 🧪 Testing
 
+Execute the comprehensive test suite (45 unit & integration tests):
 ```bash
-# Build dan jalankan dengan Docker Compose
-docker-compose up --build
+# Run all tests
+cargo test
+
+# Run CI/CD engine integration tests specifically
+cargo test --test cicd_engine_test
 ```
 
+---
+
+## 🐳 Kubernetes & Docker Deployment
+
+ExaForge Controller is designed for continuous deployment to Kubernetes with KEDA HTTP zero-scaling (`scale to 0` when idle) and Cloudflare DNS proxy.
+
+### Docker Build
+```bash
+docker build -t ghcr.io/exa-dev-infra/exaforge:latest .
+```
+
+### Kubernetes Centralized Config
+See manifests and Terraform module in `templates/kubernetes-config/exaforge/`:
+- `namespace.yaml`
+- `bridges.yaml` (KEDA HTTP proxy bridge)
+- `secret.yaml`
+- `setup.sh`
+
+---
+
+## 📜 License
+
+MIT License.

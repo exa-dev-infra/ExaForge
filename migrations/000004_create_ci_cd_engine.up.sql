@@ -159,3 +159,4 @@ CREATE TABLE IF NOT EXISTS job_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_job_logs_job_id ON job_logs(job_id, id);
+

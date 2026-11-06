@@ -59,3 +59,4 @@ pub struct ProjectDetailResponse {
     pub project: ProjectRecord,
     pub services: Vec<ServiceRecord>,
 }
+

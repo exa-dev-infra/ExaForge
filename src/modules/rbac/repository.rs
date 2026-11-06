@@ -228,3 +228,4 @@ impl RbacRepository for PostgresRbacRepository {
         Ok(rows > 0)
     }
 }
+

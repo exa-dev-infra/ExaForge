@@ -71,3 +71,4 @@ pub struct AssignServiceMemberRequest {
     pub role: String, // 'developer' | 'viewer'
     pub can_deploy_staging_only: Option<bool>,
 }
+

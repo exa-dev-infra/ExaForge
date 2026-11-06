@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline {{ pipeline.id }} - ExaForge{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="pipelineTerminal('{{ pipeline.id }}')">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#21262d]">
+        <div>
+            <div class="flex items-center space-x-3">
+                <a href="/" class="text-xs text-violet-400 hover:underline">&larr; Back to Dashboard</a>
+                <span class="text-slate-500">/</span>
+                <span class="text-xs font-mono text-slate-400">{{ pipeline.id }}</span>
+            </div>
+            <h1 class="text-xl font-bold text-white mt-2 flex items-center space-x-3">
+                <span>Pipeline Run</span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium uppercase font-mono border" :class="{
+                        'bg-amber-500/10 text-amber-400 border-amber-500/20': status === 'running',
+                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20': status === 'success',
+                        'bg-rose-500/10 text-rose-400 border-rose-500/20': status === 'failed',
+                        'bg-slate-500/10 text-slate-400 border-slate-500/20': status === 'cancelled' || status === 'pending'
+                    }" x-text="status">
+                    {{ pipeline.status }}
+                </span>
+            </h1>
+        </div>
+        <div class="flex items-center space-x-3">
+            <template x-if="status === 'running'">
+                <button @click="cancelPipeline()"
+                    class="px-3.5 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-medium transition">
+                    Cancel Pipeline ✖
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-[#161b22] border border-[#30363d] p-4 rounded-xl text-xs">
+        <div>
+            <span class="text-slate-500 uppercase tracking-wider block font-semibold">Ref / Branch</span>
+            <span class="font-mono text-slate-200 mt-1 block font-medium">{{ pipeline.git_ref }}</span>
+        </div>
+        <div>
+            <span class="text-slate-500 uppercase tracking-wider block font-semibold">Commit SHA</span>
+            <span class="font-mono text-slate-300 mt-1 block">{{ pipeline.git_commit_sha }}</span>
+        </div>
+        <div>
+            <span class="text-slate-500 uppercase tracking-wider block font-semibold">Trigger Type</span>
+            <span class="text-slate-300 mt-1 block capitalize">{{ pipeline.trigger_type }}</span>
+        </div>
+        <div>
+            <span class="text-slate-500 uppercase tracking-wider block font-semibold">Concurrency Group</span>
+            <span class="font-mono text-violet-400 mt-1 block">
+                {% if let Some(grp) = pipeline.concurrency_group %}{{ grp }}{% else %}None{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Jobs Execution List -->
+    <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-5 space-y-4">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Jobs & DAG Dependencies</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for j in jobs %}
+            <div class="bg-[#0d1117] border border-[#30363d] p-4 rounded-lg cursor-pointer hover:border-violet-500 transition"
+                :class="{ 'border-violet-500 bg-violet-950/10': activeJobId === '{{ j.id }}' }"
+                @click="selectJob('{{ j.id }}', '{{ j.name }}')">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-sm text-white">{{ j.name }}</span>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded border
+                        {% if j.status == " running" %}bg-amber-500/10 text-amber-400 border-amber-500/20 {% else if
+                        j.status=="success" %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20 {% else if
+                        j.status=="failed" %}bg-rose-500/10 text-rose-400 border-rose-500/20 {% else %}bg-slate-500/10
+                        text-slate-400 border-slate-500/20{% endif %}">
+                        {{ j.status }}
+                    </span>
+                </div>
+                <div class="mt-2 text-xs text-slate-400 space-y-1">
+                    <p class="font-mono text-[11px] text-slate-500">key: {{ j.job_key }}</p>
+                    <p>Required tags: <span class="text-slate-300 font-mono">{{ j.required_tags }}</span></p>
+                    {% if let Some(summary) = j.step_summaries %}
+                    {% if !summary.is_empty() %}
+                    <p class="text-violet-400 text-[11px] mt-1 font-medium">✔ Has Step Summary</p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Live Terminal Viewer -->
+    <div class="bg-[#0d1117] border border-[#30363d] rounded-xl overflow-hidden shadow-2xl">
+        <div class="px-5 py-3 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="flex space-x-1.5">
+                    <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+                    <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+                    <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+                </span>
+                <span class="text-xs font-mono text-slate-300" x-text="'Terminal: ' + activeJobName"></span>
+            </div>
+            <div class="flex items-center space-x-3 text-xs">
+                <span class="text-emerald-400 flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Live Log Stream</span>
+                </span>
+                <button @click="clearLogs()" class="text-slate-500 hover:text-slate-300">Clear</button>
+            </div>
+        </div>
+        <div id="terminal-body"
+            class="p-4 font-mono text-xs leading-relaxed text-slate-200 h-96 overflow-y-auto space-y-1 select-text bg-[#090d13]">
+            <template x-for="(log, idx) in logs" :key="idx">
+                <div class="flex items-start space-x-2">
+                    <span class="text-slate-600 select-none text-[10px] w-8 text-right" x-text="idx + 1"></span>
+                    <span class="text-slate-200" x-text="log"></span>
+                </div>
+            </template>
+            <template x-if="logs.length === 0">
+                <div class="text-slate-500 italic p-4 text-center">No logs recorded yet. Waiting for worker agent...
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+    function pipelineTerminal(pipelineId) {
+        return {
+            pipelineId: pipelineId,
+            status: '{{ pipeline.status }}',
+            activeJobId: '{% if let Some(first_job) = jobs.first() %}{{ first_job.id }}{% else %}{% endif %}',
+            activeJobName: '{% if let Some(first_job) = jobs.first() %}{{ first_job.name }}{% else %}No Job{% endif %}',
+            logs: [],
+            socket: null,
+
+            init() {
+                if (this.activeJobId) {
+                    this.loadJobLogs(this.activeJobId);
+                }
+                this.initWebSocket();
+            },
+
+            initWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/api/v1/realtime/ws`;
+                this.socket = new WebSocket(wsUrl);
+
+                this.socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.topic === `job_logs:${this.activeJobId}`) {
+                            this.logs.push(data.payload.line);
+                            this.scrollToBottom();
+                        }
+                    } catch (e) { }
+                };
+            },
+
+            selectJob(jobId, jobName) {
+                this.activeJobId = jobId;
+                this.activeJobName = jobName;
+                this.loadJobLogs(jobId);
+            },
+
+            loadJobLogs(jobId) {
+                fetch(`/api/v1/jobs/${jobId}/logs`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.data) {
+                            this.logs = data.data;
+                            this.scrollToBottom();
+                        }
+                    });
+            },
+
+            cancelPipeline() {
+                if (confirm('Are you sure you want to cancel this pipeline run?')) {
+                    fetch(`/api/v1/pipelines/${this.pipelineId}/cancel`, { method: 'POST' })
+                        .then(() => {
+                            this.status = 'cancelled';
+                        });
+                }
+            },
+
+            clearLogs() {
+                this.logs = [];
+            },
+
+            scrollToBottom() {
+                this.$nextTick(() => {
+                    const el = document.getElementById('terminal-body');
+                    if (el) el.scrollTop = el.scrollHeight;
+                });
+            }
+        }
+    }
+</script>
+{% endblock %}

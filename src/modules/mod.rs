@@ -1,3 +1,10 @@
+pub mod agents;
 pub mod auth;
+pub mod pipelines;
+pub mod projects;
+pub mod rbac;
 pub mod realtime;
+pub mod secrets;
 pub mod user;
+pub mod web;
+pub mod webhooks;

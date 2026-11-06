@@ -3,6 +3,7 @@ name = "exaforge"
 version = "0.1.0"
 edition = "2021"
 description = "ExaForge: Lightweight Self-Hosted CI/CD Engine (Controller + Worker Agent)"
+default-run = "exaforge"
 
 [dependencies]
 # Web Framework & Async Runtime

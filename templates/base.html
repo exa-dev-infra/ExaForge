@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ExaForge - Lightweight CI/CD Engine{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                        },
+                        darkbg: '#0d1117',
+                        darkcard: '#161b22',
+                        darkborder: '#30363d',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8b5cf6;
+        }
+    </style>
+</head>
+
+<body class="bg-[#0b0e14] text-slate-200 font-sans min-h-screen flex flex-col antialiased">
+    <!-- Navbar Header -->
+    <header
+        class="border-b border-[#21262d] bg-[#161b22]/80 backdrop-blur sticky top-0 z-40 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-6">
+            <a href="/" class="flex items-center space-x-3 group">
+                <div
+                    class="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center font-black text-white shadow-lg shadow-violet-500/20">
+                    ⚡
+                </div>
+                <span class="text-lg font-bold tracking-tight text-white group-hover:text-violet-400 transition-colors">
+                    ExaForge
+                </span>
+                <span
+                    class="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 font-medium">
+                    v0.1.0
+                </span>
+            </a>
+            <nav class="hidden md:flex items-center space-x-1">
+                <a href="/"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-[#21262d] text-slate-300 hover:text-white transition">Dashboard</a>
+                <a href="/projects"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-[#21262d] text-slate-300 hover:text-white transition">Projects
+                    & Stacks</a>
+                <a href="/agents"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-[#21262d] text-slate-300 hover:text-white transition">Worker
+                    Agents</a>
+                <a href="/secrets"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-[#21262d] text-slate-300 hover:text-white transition">Secrets</a>
+            </nav>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div
+                class="flex items-center space-x-2 text-xs text-slate-400 bg-[#0d1117] border border-[#30363d] px-3 py-1.5 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Controller Online</span>
+            </div>
+            <a href="https://github.com/exa31" target="_blank"
+                class="text-slate-400 hover:text-white text-xs transition">Docs</a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[#21262d] py-4 text-center text-xs text-slate-500">
+        ExaForge CI/CD Engine &bull; Pure Rust SSR with Askama &bull; Controller + Worker Agent Architecture
+    </footer>
+</body>
+
+</html>

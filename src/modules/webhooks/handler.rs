@@ -1,0 +1,30 @@
+use axum::{
+    body::Bytes,
+    extract::State,
+    http::HeaderMap,
+    response::IntoResponse,
+};
+use std::sync::Arc;
+
+use crate::pkg::{errors::AppError, response::BaseResponse};
+use super::{dto::GenericWebhookPayload, service::WebhookService};
+
+pub async fn git_webhook_handler(
+    State(service): State<Arc<WebhookService>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    let signature_header = headers.get("X-Hub-Signature-256")
+        .or_else(|| headers.get("x-hub-signature-256"))
+        .and_then(|v| v.to_str().ok());
+
+    let payload: GenericWebhookPayload = serde_json::from_slice(&body)
+        .map_err(|e| AppError::bad_request(format!("Invalid webhook JSON payload: {}", e), "INVALID_PAYLOAD"))?;
+
+    let triggered = service.process_webhook(&body, signature_header, payload).await?;
+
+    Ok(BaseResponse::success(
+        triggered,
+        "Webhook processed successfully",
+    ))
+}

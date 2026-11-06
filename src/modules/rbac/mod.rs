@@ -4,3 +4,4 @@ pub mod service;
 
 pub use repository::{PostgresRbacRepository, RbacRepository};
 pub use service::RbacService;
+

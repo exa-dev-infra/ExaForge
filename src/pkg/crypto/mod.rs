@@ -121,3 +121,61 @@ pub fn verify_hmac_sha256(payload: &[u8], secret: &str, signature_header: &str) 
     mac.update(payload);
     mac.verify_slice(&expected_sig).is_ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_aes_gcm_roundtrip() {
+        let master_key = [42u8; 32];
+        let plain_text = "super-secret-password-12345!@#$%^&*()_+";
+
+        let (encrypted, iv, tag) = encrypt_secret(plain_text, &master_key).expect("encryption succeeds");
+        assert_ne!(encrypted, plain_text);
+        assert_eq!(iv.len(), 24); // 12 bytes = 24 hex chars
+        assert_eq!(tag.len(), 32); // 16 bytes = 32 hex chars
+
+        let decrypted = decrypt_secret(&encrypted, &iv, &tag, &master_key).expect("decryption succeeds");
+        assert_eq!(decrypted, plain_text);
+    }
+
+    #[test]
+    fn test_aes_gcm_tampered_tag_fails() {
+        let master_key = [7u8; 32];
+        let plain_text = "database_prod_secret";
+
+        let (encrypted, iv, mut tag) = encrypt_secret(plain_text, &master_key).unwrap();
+        // Tamper with last char of tag
+        let last_char = tag.pop().unwrap();
+        tag.push(if last_char == '0' { '1' } else { '0' });
+
+        let result = decrypt_secret(&encrypted, &iv, &tag, &master_key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_hmac_sha256_verification() {
+        let payload = b"{\"ref\":\"refs/heads/main\"}";
+        let secret = "my-webhook-secret-token";
+
+        // Compute HMAC
+        let mut mac = <HmacSha256 as Mac>::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(payload);
+        let sig_bytes = mac.finalize().into_bytes();
+        let valid_header = format!("sha256={}", hex::encode(sig_bytes));
+
+        assert!(verify_hmac_sha256(payload, secret, &valid_header));
+        assert!(verify_hmac_sha256(payload, secret, &hex::encode(sig_bytes)));
+        assert!(!verify_hmac_sha256(payload, "wrong-secret", &valid_header));
+        assert!(!verify_hmac_sha256(b"tampered", secret, &valid_header));
+    }
+
+    #[test]
+    fn test_generate_agent_token() {
+        let token = generate_agent_token();
+        assert!(token.starts_with("agt_"));
+        assert_eq!(token.len(), 4 + 32);
+    }
+}
+

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Worker Agents - ExaForge{% endblock %}
+
+{% block content %}
+<div class="space-y-8" x-data="{ newAgentModal: false }">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-[#21262d]">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Worker Agents Registry</h1>
+            <p class="text-sm text-slate-400 mt-1">Agents connect outbound via WebSocket behind NAT. Advertise
+                capability tags (linux, docker, k8s, macos, android).</p>
+        </div>
+        <button @click="newAgentModal = true"
+            class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-violet-600/20">
+            + Register New Agent
+        </button>
+    </div>
+
+    <!-- Agent List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% if agents.is_empty() %}
+        <div class="col-span-full bg-[#161b22] border border-[#30363d] p-12 rounded-xl text-center">
+            <p class="text-slate-400 text-sm">No worker agents registered yet.</p>
+            <button @click="newAgentModal = true"
+                class="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition">
+                Register First Worker Agent
+            </button>
+        </div>
+        {% else %}
+        {% for a in agents %}
+        <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full {% if a.status == " online" %}bg-emerald-400 animate-pulse{%
+                        else %}bg-slate-500{% endif %}"></span>
+                    <h2 class="font-bold text-white text-sm">{{ a.name }}</h2>
+                </div>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded uppercase border
+                    {% if a.status == " online" %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20 {% else
+                    %}bg-slate-500/10 text-slate-400 border-slate-500/20{% endif %}">
+                    {{ a.status }}
+                </span>
+            </div>
+            <div class="text-xs text-slate-400 space-y-1">
+                <p>Agent Token: <span class="font-mono text-slate-300 bg-[#0d1117] px-1.5 py-0.5 rounded">{{
+                        a.agent_token }}</span></p>
+                <div class="pt-1">
+                    <span class="text-slate-500 block mb-1">Capability Tags:</span>
+                    <div class="flex flex-wrap gap-1">
+                        <span
+                            class="font-mono text-[11px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded">
+                            {{ a.tags }}
+                        </span>
+                    </div>
+                </div>
+                {% if let Some(hb) = a.last_heartbeat_at %}
+                <p class="pt-2 text-[11px] text-slate-500">Last heartbeat: {{ hb.format("%Y-%m-%d %H:%M:%S") }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Quick Run Guide Box -->
+    <div class="bg-[#0d1117] border border-[#30363d] p-5 rounded-xl space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Run a Worker Agent on any machine
+            (Linux/macOS/Docker)</h3>
+        <p class="text-xs text-slate-400">Launch the agent daemon. No public IP needed:</p>
+        <div class="bg-[#161b22] p-3 rounded-lg font-mono text-xs text-violet-300 select-all border border-[#30363d]">
+            exaforge agent --controller-url ws://localhost:8080/api/v1/agents/ws --token &lt;YOUR_AGENT_TOKEN&gt; --tags
+            linux,docker,k8s
+        </div>
+    </div>
+</div>
+{% endblock %}

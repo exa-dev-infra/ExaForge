@@ -108,3 +108,24 @@ fn test_sync_exavault_request_validation() {
     };
     assert!(valid_req.validate().is_ok());
 }
+
+#[test]
+fn test_exavault_webhook_payload_deserialization() {
+    use exaforge::modules::webhooks::dto::ExaVaultWebhookPayload;
+
+    let json_data = r#"{
+        "event": "secrets.updated",
+        "project_slug": "eka-cloud",
+        "environment": "prod",
+        "changed_keys": ["DATABASE_URL", "NEW_API_KEY"],
+        "deleted_keys": ["OLD_API_KEY"]
+    }"#;
+
+    let payload: ExaVaultWebhookPayload = serde_json::from_str(json_data).expect("Should deserialize payload");
+    assert_eq!(payload.event, "secrets.updated");
+    assert_eq!(payload.project_slug, Some("eka-cloud".to_string()));
+    assert_eq!(payload.environment, Some("prod".to_string()));
+    assert_eq!(payload.changed_keys, vec!["DATABASE_URL", "NEW_API_KEY"]);
+    assert_eq!(payload.deleted_keys, vec!["OLD_API_KEY"]);
+}
+

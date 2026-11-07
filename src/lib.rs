@@ -108,7 +108,12 @@ pub fn build_app(config: AppConfig, pool: PgPool, hub: Arc<RealtimeHub>) -> Rout
         secret_service.clone(),
         agent_service.clone(),
     ));
-    let webhook_service = Arc::new(WebhookService::new(project_service.clone(), pipeline_service.clone()));
+    let webhook_service = Arc::new(WebhookService::new(
+        project_service.clone(),
+        pipeline_service.clone(),
+        secret_service.clone(),
+        hub.clone(),
+    ));
 
     let user_service = Arc::new(UserService::with_default_repo(pool.clone()));
     let auth_service = Arc::new(AuthService::with_default_repos(pool.clone(), config.clone()));

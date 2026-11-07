@@ -37,3 +37,24 @@ pub struct WebhookReleaseInfo {
     pub name: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ExaVaultWebhookPayload {
+    pub event: String, // e.g. "secrets.updated"
+    #[serde(default)]
+    pub project_slug: Option<String>,
+    #[serde(default)]
+    pub environment: Option<String>,
+    #[serde(default)]
+    pub changed_keys: Vec<String>,
+    #[serde(default)]
+    pub deleted_keys: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExaVaultWebhookResult {
+    pub synced_services: usize,
+    pub synced_projects: usize,
+    pub total_keys_updated: usize,
+}
+
+

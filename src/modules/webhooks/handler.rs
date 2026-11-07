@@ -7,7 +7,10 @@ use axum::{
 use std::sync::Arc;
 
 use crate::pkg::{errors::AppError, response::BaseResponse};
-use super::{dto::GenericWebhookPayload, service::WebhookService};
+use super::{
+    dto::{ExaVaultWebhookPayload, GenericWebhookPayload},
+    service::WebhookService,
+};
 
 pub async fn git_webhook_handler(
     State(service): State<Arc<WebhookService>>,
@@ -26,5 +29,21 @@ pub async fn git_webhook_handler(
     Ok(BaseResponse::success(
         triggered,
         "Webhook processed successfully",
+    ))
+}
+
+pub async fn exavault_webhook_handler(
+    State(service): State<Arc<WebhookService>>,
+    _headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    let payload: ExaVaultWebhookPayload = serde_json::from_slice(&body)
+        .map_err(|e| AppError::bad_request(format!("Invalid ExaVault webhook JSON payload: {}", e), "INVALID_PAYLOAD"))?;
+
+    let result = service.process_exavault_webhook(payload).await?;
+
+    Ok(BaseResponse::success(
+        result,
+        "ExaVault webhook processed and secrets auto-synchronized",
     ))
 }

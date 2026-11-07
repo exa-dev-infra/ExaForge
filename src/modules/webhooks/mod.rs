@@ -10,6 +10,6 @@ pub use service::WebhookService;
 pub fn router(service: Arc<WebhookService>) -> Router {
     Router::new()
         .route("/webhooks/git", post(handler::git_webhook_handler))
+        .route("/webhooks/exavault", post(handler::exavault_webhook_handler))
         .with_state(service)
 }
-

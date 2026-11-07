@@ -5,28 +5,36 @@ use crate::{
     modules::{
         pipelines::{dto::PipelineRecord, service::PipelineService},
         projects::service::ProjectService,
+        secrets::{dto::SyncExaVaultRequest, service::SecretService},
     },
     pkg::{
         crypto::verify_hmac_sha256,
         errors::AppError,
+        realtime::RealtimeHub,
     },
 };
-use super::dto::GenericWebhookPayload;
+use super::dto::{ExaVaultWebhookPayload, ExaVaultWebhookResult, GenericWebhookPayload};
 
 #[derive(Clone)]
 pub struct WebhookService {
     project_service: Arc<ProjectService>,
     pipeline_service: Arc<PipelineService>,
+    secret_service: Arc<SecretService>,
+    hub: Arc<RealtimeHub>,
 }
 
 impl WebhookService {
     pub fn new(
         project_service: Arc<ProjectService>,
         pipeline_service: Arc<PipelineService>,
+        secret_service: Arc<SecretService>,
+        hub: Arc<RealtimeHub>,
     ) -> Self {
         Self {
             project_service,
             pipeline_service,
+            secret_service,
+            hub,
         }
     }
 
@@ -154,5 +162,103 @@ impl WebhookService {
         }
 
         Ok(triggered_pipelines)
+    }
+
+    /// Processes an incoming webhook event from ExaVault (e.g. `secrets.updated`),
+    /// automatically synchronizing secrets for matching projects and services into ExaForge.
+    pub async fn process_exavault_webhook(
+        &self,
+        payload: ExaVaultWebhookPayload,
+    ) -> Result<ExaVaultWebhookResult, AppError> {
+        info!(
+            event = %payload.event,
+            project = ?payload.project_slug,
+            changed = ?payload.changed_keys,
+            "Received ExaVault webhook event"
+        );
+
+        let all_projects = self.project_service.list_projects().await?;
+        let all_services = self.project_service.list_all_services().await?;
+
+        let mut synced_projects = 0;
+        let mut synced_services = 0;
+        let mut total_keys = 0;
+
+        // 1. Sync matching projects that have exavault_token configured
+        for p in &all_projects {
+            if let Some(token) = &p.exavault_token {
+                if !token.trim().is_empty() {
+                    if let Some(target_slug) = &payload.project_slug {
+                        if p.slug != *target_slug {
+                            continue;
+                        }
+                    }
+
+                    match self.secret_service.sync_from_exavault(SyncExaVaultRequest {
+                        scope_type: "project".to_string(),
+                        project_id: p.id,
+                        service_id: None,
+                        exavault_url: p.exavault_url.clone(),
+                        exavault_token: token.clone(),
+                    }).await {
+                        Ok(resp) => {
+                            info!(project = %p.slug, count = resp.synced_count, "Auto-synced project secrets via ExaVault webhook");
+                            synced_projects += 1;
+                            total_keys += resp.synced_count;
+                        }
+                        Err(e) => {
+                            warn!(project = %p.slug, error = %e, "Failed to auto-sync project secrets via ExaVault webhook");
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Sync matching services that have exavault_token configured
+        for s in &all_services {
+            if let Some(token) = &s.exavault_token {
+                if !token.trim().is_empty() {
+                    if let Some(target_slug) = &payload.project_slug {
+                        if let Some(parent) = all_projects.iter().find(|p| p.id == s.project_id) {
+                            if parent.slug != *target_slug {
+                                continue;
+                            }
+                        }
+                    }
+
+                    match self.secret_service.sync_from_exavault(SyncExaVaultRequest {
+                        scope_type: "service".to_string(),
+                        project_id: s.project_id,
+                        service_id: Some(s.id),
+                        exavault_url: s.exavault_url.clone(),
+                        exavault_token: token.clone(),
+                    }).await {
+                        Ok(resp) => {
+                            info!(service = %s.slug, count = resp.synced_count, "Auto-synced service secrets via ExaVault webhook");
+                            synced_services += 1;
+                            total_keys += resp.synced_count;
+                        }
+                        Err(e) => {
+                            warn!(service = %s.slug, error = %e, "Failed to auto-sync service secrets via ExaVault webhook");
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Broadcast real-time update to web dashboard
+        let broadcast_msg = serde_json::json!({
+            "event": "exavault_secrets_synced",
+            "synced_projects": synced_projects,
+            "synced_services": synced_services,
+            "total_keys_updated": total_keys,
+        });
+        self.hub.broadcast(broadcast_msg.to_string()).await;
+
+        Ok(ExaVaultWebhookResult {
+            synced_services,
+            synced_projects,
+            total_keys_updated: total_keys,
+        })
     }
 }

@@ -129,3 +129,16 @@ fn test_exavault_webhook_payload_deserialization() {
     assert_eq!(payload.deleted_keys, vec!["OLD_API_KEY"]);
 }
 
+#[test]
+fn test_exavault_webhook_query_defaults() {
+    use exaforge::modules::webhooks::dto::ExaVaultWebhookQuery;
+
+    let q: ExaVaultWebhookQuery = serde_json::from_str("{}").expect("Should deserialize empty query");
+    assert!(q.project_slug.is_none());
+    assert!(q.project_id.is_none());
+    assert!(q.service_id.is_none());
+
+    let q2: ExaVaultWebhookQuery = serde_json::from_str(r#"{"project_slug":"backend"}"#).expect("Should parse query with slug");
+    assert_eq!(q2.project_slug.as_deref(), Some("backend"));
+}
+

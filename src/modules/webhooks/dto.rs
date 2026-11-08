@@ -1,4 +1,13 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ExaVaultWebhookQuery {
+    pub project_slug: Option<String>,
+    pub project_id: Option<Uuid>,
+    pub service_id: Option<Uuid>,
+    pub secret: Option<String>,
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct GenericWebhookPayload {

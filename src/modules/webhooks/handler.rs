@@ -1,6 +1,6 @@
 use axum::{
     body::Bytes,
-    extract::State,
+    extract::{Query, State},
     http::HeaderMap,
     response::IntoResponse,
 };
@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::pkg::{errors::AppError, response::BaseResponse};
 use super::{
-    dto::{ExaVaultWebhookPayload, GenericWebhookPayload},
+    dto::{ExaVaultWebhookPayload, ExaVaultWebhookQuery, GenericWebhookPayload},
     service::WebhookService,
 };
 
@@ -34,13 +34,14 @@ pub async fn git_webhook_handler(
 
 pub async fn exavault_webhook_handler(
     State(service): State<Arc<WebhookService>>,
+    Query(query): Query<ExaVaultWebhookQuery>,
     _headers: HeaderMap,
     body: Bytes,
 ) -> Result<impl IntoResponse, AppError> {
     let payload: ExaVaultWebhookPayload = serde_json::from_slice(&body)
         .map_err(|e| AppError::bad_request(format!("Invalid ExaVault webhook JSON payload: {}", e), "INVALID_PAYLOAD"))?;
 
-    let result = service.process_exavault_webhook(payload).await?;
+    let result = service.process_exavault_webhook(query, payload).await?;
 
     Ok(BaseResponse::success(
         result,

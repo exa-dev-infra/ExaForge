@@ -13,7 +13,7 @@ use crate::{
         realtime::RealtimeHub,
     },
 };
-use super::dto::{ExaVaultWebhookPayload, ExaVaultWebhookResult, GenericWebhookPayload};
+use super::dto::{ExaVaultWebhookPayload, ExaVaultWebhookQuery, ExaVaultWebhookResult, GenericWebhookPayload};
 
 #[derive(Clone)]
 pub struct WebhookService {
@@ -168,14 +168,27 @@ impl WebhookService {
     /// automatically synchronizing secrets for matching projects and services into ExaForge.
     pub async fn process_exavault_webhook(
         &self,
+        query: ExaVaultWebhookQuery,
         payload: ExaVaultWebhookPayload,
     ) -> Result<ExaVaultWebhookResult, AppError> {
         info!(
             event = %payload.event,
             project = ?payload.project_slug,
+            query_project = ?query.project_slug,
+            query_project_id = ?query.project_id,
             changed = ?payload.changed_keys,
             "Received ExaVault webhook event"
         );
+
+        // Ping / Healthcheck event: acknowledge immediately
+        if payload.event == "ping" || payload.event == "health" {
+            info!("Acknowledged ExaVault ping healthcheck");
+            return Ok(ExaVaultWebhookResult {
+                synced_services: 0,
+                synced_projects: 0,
+                total_keys_updated: 0,
+            });
+        }
 
         let all_projects = self.project_service.list_projects().await?;
         let all_services = self.project_service.list_all_services().await?;
@@ -184,12 +197,20 @@ impl WebhookService {
         let mut synced_services = 0;
         let mut total_keys = 0;
 
+        let target_project_slug = query.project_slug.as_deref().or(payload.project_slug.as_deref());
+
         // 1. Sync matching projects that have exavault_token configured
         for p in &all_projects {
+            if let Some(pid) = query.project_id {
+                if p.id != pid {
+                    continue;
+                }
+            }
+
             if let Some(token) = &p.exavault_token {
                 if !token.trim().is_empty() {
-                    if let Some(target_slug) = &payload.project_slug {
-                        if p.slug != *target_slug {
+                    if let Some(target_slug) = target_project_slug {
+                        if p.slug != target_slug {
                             continue;
                         }
                     }
@@ -216,11 +237,22 @@ impl WebhookService {
 
         // 2. Sync matching services that have exavault_token configured
         for s in &all_services {
+            if let Some(sid) = query.service_id {
+                if s.id != sid {
+                    continue;
+                }
+            }
+            if let Some(pid) = query.project_id {
+                if s.project_id != pid {
+                    continue;
+                }
+            }
+
             if let Some(token) = &s.exavault_token {
                 if !token.trim().is_empty() {
-                    if let Some(target_slug) = &payload.project_slug {
+                    if let Some(target_slug) = target_project_slug {
                         if let Some(parent) = all_projects.iter().find(|p| p.id == s.project_id) {
-                            if parent.slug != *target_slug {
+                            if parent.slug != target_slug {
                                 continue;
                             }
                         }

@@ -248,3 +248,27 @@ fn test_agent_token_generation_and_crypto() {
     assert!(!is_valid);
 }
 
+#[test]
+fn test_exacode_studio_pipeline_parsing() {
+    let raw_ci = std::fs::read_to_string("/Users/macbookair/projects/exacode/.ci.yaml")
+        .expect("Read exacode .ci.yaml");
+    let config = parse_pipeline_config(&raw_ci).expect("Parse exacode .ci.yaml");
+    
+    assert_eq!(config.name, "Exacode Studio CI/CD Pipeline");
+    let conc = config.concurrency.expect("Concurrency config exists");
+    assert_eq!(conc.group, "deploy-exacode-studio");
+    assert!(conc.cancel_in_progress);
+
+    assert_eq!(config.jobs.len(), 3);
+    assert!(config.jobs.contains_key("build_backend"));
+    assert!(config.jobs.contains_key("build_frontend"));
+    assert!(config.jobs.contains_key("deploy_k8s"));
+
+    let deploy_job = config.jobs.get("deploy_k8s").unwrap();
+    assert_eq!(deploy_job.tags, vec!["linux", "k8s"]);
+    assert_eq!(deploy_job.needs, vec!["build_backend", "build_frontend"]);
+
+    let sorted = topological_sort_jobs(&config.jobs).expect("Topological sort DAG");
+    assert_eq!(sorted.last().unwrap(), "deploy_k8s");
+}
+

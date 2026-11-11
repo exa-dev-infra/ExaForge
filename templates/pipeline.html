@@ -74,11 +74,14 @@
                 @click="selectJob('{{ j.id }}', '{{ j.name }}')">
                 <div class="flex items-center justify-between">
                     <span class="font-bold text-sm text-white">{{ j.name }}</span>
-                    <span class="text-[11px] font-mono px-2 py-0.5 rounded border
-                        {% if j.status == " running" %}bg-amber-500/10 text-amber-400 border-amber-500/20 {% else if
-                        j.status=="success" %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20 {% else if
-                        j.status=="failed" %}bg-rose-500/10 text-rose-400 border-rose-500/20 {% else %}bg-slate-500/10
-                        text-slate-400 border-slate-500/20{% endif %}">
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded border"
+                        :class="{
+                            'bg-amber-500/10 text-amber-400 border-amber-500/20': getJobStatus('{{ j.id }}', '{{ j.status }}') === 'running',
+                            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20': getJobStatus('{{ j.id }}', '{{ j.status }}') === 'success',
+                            'bg-rose-500/10 text-rose-400 border-rose-500/20': getJobStatus('{{ j.id }}', '{{ j.status }}') === 'failed',
+                            'bg-slate-500/10 text-slate-400 border-slate-500/20': !['running', 'success', 'failed'].includes(getJobStatus('{{ j.id }}', '{{ j.status }}'))
+                        }"
+                        x-text="getJobStatus('{{ j.id }}', '{{ j.status }}')">
                         {{ j.status }}
                     </span>
                 </div>
@@ -140,33 +143,154 @@
             activeJobName: '{% if let Some(first_job) = jobs.first() %}{{ first_job.name }}{% else %}No Job{% endif %}',
             logs: [],
             socket: null,
+            pollTimer: null,
+            reconnectTimer: null,
+            jobStatuses: {
+                {% for j in jobs %}
+                '{{ j.id }}': '{{ j.status }}',
+                {% endfor %}
+            },
 
             init() {
                 if (this.activeJobId) {
                     this.loadJobLogs(this.activeJobId);
                 }
                 this.initWebSocket();
+                if (this.status === 'running' || this.status === 'pending' || this.status === 'assigned') {
+                    this.startPolling();
+                }
+            },
+
+            getJobStatus(jobId, fallbackStatus) {
+                return this.jobStatuses[jobId] || fallbackStatus;
+            },
+
+            updateJobStatus(jobId, newStatus) {
+                this.jobStatuses[jobId] = newStatus;
             },
 
             initWebSocket() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/api/v1/realtime/ws`;
-                this.socket = new WebSocket(wsUrl);
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
 
-                this.socket.onmessage = (event) => {
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/api/v1/realtime/ws`;
+                    this.socket = new WebSocket(wsUrl);
+
+                    this.socket.onopen = () => {
+                        console.log('[ExaForge WS] Connected to realtime log stream');
+                    };
+
+                    this.socket.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+
+                            // 1. Log lines stream
+                            const isMatchJob = data.topic === `job_logs:${this.activeJobId}` || data.job_id === this.activeJobId;
+                            if (isMatchJob) {
+                                const line = data.line ?? (data.payload && data.payload.line) ?? (typeof data.payload === 'string' ? data.payload : null);
+                                if (line !== null && line !== undefined) {
+                                    this.logs.push(line);
+                                    this.scrollToBottom();
+                                }
+                            }
+
+                            // 2. Job status transitions
+                            if (data.event === 'job_status' || (data.topic && data.topic.startsWith('job_status:'))) {
+                                const targetJobId = data.job_id;
+                                if (targetJobId && data.status) {
+                                    this.updateJobStatus(targetJobId, data.status);
+                                }
+                            }
+
+                            // 3. Pipeline status updates
+                            if (data.event === 'pipeline_status' || data.topic === `pipeline_status:${this.pipelineId}`) {
+                                if (data.status) {
+                                    this.status = data.status;
+                                    if (this.status !== 'running' && this.status !== 'pending' && this.status !== 'assigned') {
+                                        this.stopPolling();
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('[ExaForge WS] Error processing message', e);
+                        }
+                    };
+
+                    this.socket.onclose = () => {
+                        if (this.status === 'running' || this.status === 'pending' || this.status === 'assigned') {
+                            this.reconnectTimer = setTimeout(() => {
+                                this.initWebSocket();
+                            }, 2500);
+                        }
+                    };
+
+                    this.socket.onerror = () => {
+                        if (this.socket) {
+                            this.socket.close();
+                        }
+                    };
+                } catch (e) {
+                    console.error('[ExaForge WS] Failed to initialize WebSocket', e);
+                }
+            },
+
+            startPolling() {
+                if (this.pollTimer) clearInterval(this.pollTimer);
+                this.pollTimer = setInterval(async () => {
+                    if (this.status !== 'running' && this.status !== 'pending' && this.status !== 'assigned') {
+                        this.stopPolling();
+                        return;
+                    }
                     try {
-                        const data = JSON.parse(event.data);
-                        if (data.topic === `job_logs:${this.activeJobId}`) {
-                            this.logs.push(data.payload.line);
-                            this.scrollToBottom();
+                        // Poll pipeline detail to update pipeline status & job statuses
+                        const res = await fetch(`/api/v1/pipelines/${this.pipelineId}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.data && data.data.pipeline) {
+                                this.status = data.data.pipeline.status;
+                                if (data.data.jobs) {
+                                    for (const j of data.data.jobs) {
+                                        this.updateJobStatus(j.id, j.status);
+                                    }
+                                }
+                                if (this.status !== 'running' && this.status !== 'pending' && this.status !== 'assigned') {
+                                    this.stopPolling();
+                                }
+                            }
+                        }
+
+                        // Poll active job logs if running
+                        if (this.activeJobId) {
+                            const logRes = await fetch(`/api/v1/jobs/${this.activeJobId}/logs`);
+                            if (logRes.ok) {
+                                const logData = await logRes.json();
+                                if (logData.data && Array.isArray(logData.data)) {
+                                    if (logData.data.length > this.logs.length) {
+                                        this.logs = logData.data;
+                                        this.scrollToBottom();
+                                    }
+                                }
+                            }
                         }
                     } catch (e) { }
-                };
+                }, 2000);
+            },
+
+            stopPolling() {
+                if (this.pollTimer) {
+                    clearInterval(this.pollTimer);
+                    this.pollTimer = null;
+                }
             },
 
             selectJob(jobId, jobName) {
                 this.activeJobId = jobId;
                 this.activeJobName = jobName;
+                this.logs = [];
                 this.loadJobLogs(jobId);
             },
 
@@ -174,11 +298,12 @@
                 fetch(`/api/v1/jobs/${jobId}/logs`)
                     .then(res => res.json())
                     .then(data => {
-                        if (data.data) {
+                        if (data.data && Array.isArray(data.data)) {
                             this.logs = data.data;
                             this.scrollToBottom();
                         }
-                    });
+                    })
+                    .catch(() => {});
             },
 
             cancelPipeline() {
@@ -186,6 +311,7 @@
                     fetch(`/api/v1/pipelines/${this.pipelineId}/cancel`, { method: 'POST' })
                         .then(() => {
                             this.status = 'cancelled';
+                            this.stopPolling();
                         });
                 }
             },

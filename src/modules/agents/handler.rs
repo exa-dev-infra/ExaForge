@@ -110,6 +110,14 @@ async fn handle_agent_socket(
                         .bind(job_id)
                         .execute(&pool)
                         .await;
+
+                    let event = serde_json::json!({
+                        "topic": format!("job_status:{}", job_id),
+                        "event": "job_status",
+                        "job_id": job_id,
+                        "status": "running"
+                    });
+                    realtime_hub.broadcast(event.to_string()).await;
                 }
                 Ok(AgentToControllerMessage::LogStream { job_id, step_index, stream, line }) => {
                     let _ = sqlx::query(
@@ -127,7 +135,10 @@ async fn handle_agent_socket(
                         "job_id": job_id,
                         "step_index": step_index,
                         "stream": stream,
-                        "line": line
+                        "line": line.clone(),
+                        "payload": {
+                            "line": line
+                        }
                     });
                     realtime_hub.broadcast(payload.to_string()).await;
                 }
@@ -153,6 +164,14 @@ async fn handle_agent_socket(
                     .bind(job_id)
                     .execute(&pool)
                     .await;
+
+                    let job_event = serde_json::json!({
+                        "topic": format!("job_status:{}", job_id),
+                        "event": "job_status",
+                        "job_id": job_id,
+                        "status": status.clone()
+                    });
+                    realtime_hub.broadcast(job_event.to_string()).await;
 
                     let pipeline_res: Result<Option<(Uuid,)>, _> = sqlx::query_as(
                         "SELECT pipeline_id FROM jobs WHERE id = $1"
@@ -191,6 +210,14 @@ async fn handle_agent_socket(
                                 .bind(pipeline_id)
                                 .execute(&pool)
                                 .await;
+
+                                let pipe_event = serde_json::json!({
+                                    "topic": format!("pipeline_status:{}", pipeline_id),
+                                    "event": "pipeline_status",
+                                    "pipeline_id": pipeline_id,
+                                    "status": final_pipe_status
+                                });
+                                realtime_hub.broadcast(pipe_event.to_string()).await;
                             }
                         }
                     }

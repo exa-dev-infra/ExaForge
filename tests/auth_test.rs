@@ -51,3 +51,51 @@ fn test_sha256_token_hashing() {
     assert_eq!(digest1.len(), 64); // SHA-256 produces 64 hex characters
     assert_ne!(token, digest1);
 }
+
+#[tokio::test]
+async fn test_authenticated_user_from_cookie_and_bearer() {
+    use axum::extract::FromRequestParts;
+    use exaforge::pkg::auth::jwt::AuthenticatedUser;
+
+    let user_id = Uuid::new_v4();
+    let email = "admin@exaforge.local";
+    let role = "super_admin";
+    let secret = "default_secret_key_change_in_production";
+    std::env::set_var("JWT_SECRET", secret);
+
+    let token_pair = generate_token_pair(&user_id, email, role, secret, 15).unwrap();
+
+    // 1. Test Cookie header extraction
+    let req = axum::http::Request::builder()
+        .header(axum::http::header::COOKIE, format!("access_token={}; other=123", token_pair.access_token))
+        .body(())
+        .unwrap();
+
+    let (mut parts, _) = req.into_parts();
+    let auth_user = AuthenticatedUser::from_request_parts(&mut parts, &()).await.unwrap();
+
+    assert_eq!(auth_user.id, user_id);
+    assert_eq!(auth_user.email, email);
+    assert_eq!(auth_user.role, role);
+
+    // 2. Test Authorization Bearer header extraction
+    let req2 = axum::http::Request::builder()
+        .header(axum::http::header::AUTHORIZATION, format!("Bearer {}", token_pair.access_token))
+        .body(())
+        .unwrap();
+
+    let (mut parts2, _) = req2.into_parts();
+    let auth_user2 = AuthenticatedUser::from_request_parts(&mut parts2, &()).await.unwrap();
+
+    assert_eq!(auth_user2.id, user_id);
+
+    // 3. Test missing credentials returns 401 Unauthorized
+    let req3 = axum::http::Request::builder()
+        .body(())
+        .unwrap();
+
+    let (mut parts3, _) = req3.into_parts();
+    let err = AuthenticatedUser::from_request_parts(&mut parts3, &()).await.unwrap_err();
+    use axum::response::IntoResponse;
+    assert_eq!(err.into_response().status(), axum::http::StatusCode::UNAUTHORIZED);
+}

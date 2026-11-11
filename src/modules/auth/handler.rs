@@ -19,7 +19,27 @@ use crate::{
     },
 };
 
+const ACCESS_COOKIE_NAME: &str = "access_token";
 const REFRESH_COOKIE_NAME: &str = "refresh_token";
+
+fn create_access_cookie(token: &str, secure: bool) -> Cookie<'static> {
+    Cookie::build((ACCESS_COOKIE_NAME, token.to_string()))
+        .path("/")
+        .http_only(true)
+        .secure(secure)
+        .same_site(SameSite::Lax)
+        .max_age(time::Duration::days(7))
+        .build()
+}
+
+fn clear_access_cookie() -> Cookie<'static> {
+    Cookie::build((ACCESS_COOKIE_NAME, ""))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(time::Duration::seconds(0))
+        .build()
+}
 
 fn create_refresh_cookie(token: &str, secure: bool) -> Cookie<'static> {
     Cookie::build((REFRESH_COOKIE_NAME, token.to_string()))
@@ -64,8 +84,9 @@ pub async fn register_handler(
     let (ua, ip) = extract_client_info(&headers);
     let auth_res = service.register(req, ua.as_deref(), ip.as_deref()).await?;
 
-    let cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
-    let updated_jar = jar.add(cookie);
+    let refresh_cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
+    let access_cookie = create_access_cookie(&auth_res.tokens.access_token, false);
+    let updated_jar = jar.add(refresh_cookie).add(access_cookie);
 
     let (status, body) = BaseResponse::created(auth_res, "User registered successfully");
     Ok((status, updated_jar, body))
@@ -80,8 +101,9 @@ pub async fn login_handler(
     let (ua, ip) = extract_client_info(&headers);
     let auth_res = service.login(req, ua.as_deref(), ip.as_deref()).await?;
 
-    let cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
-    let updated_jar = jar.add(cookie);
+    let refresh_cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
+    let access_cookie = create_access_cookie(&auth_res.tokens.access_token, false);
+    let updated_jar = jar.add(refresh_cookie).add(access_cookie);
 
     let (status, body) = BaseResponse::success(auth_res, "Login successful");
     Ok((status, updated_jar, body))
@@ -103,8 +125,9 @@ pub async fn refresh_handler(
         .refresh(&token, ua.as_deref(), ip.as_deref())
         .await?;
 
-    let cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
-    let updated_jar = jar.add(cookie);
+    let refresh_cookie = create_refresh_cookie(&auth_res.tokens.refresh_token, false);
+    let access_cookie = create_access_cookie(&auth_res.tokens.access_token, false);
+    let updated_jar = jar.add(refresh_cookie).add(access_cookie);
 
     let (status, resp) = BaseResponse::success(auth_res, "Token refreshed successfully");
     Ok((status, updated_jar, resp))
@@ -113,16 +136,17 @@ pub async fn refresh_handler(
 pub async fn logout_handler(
     State(service): State<Arc<AuthService>>,
     jar: CookieJar,
-    axum::extract::Json(body): axum::extract::Json<RefreshTokenRequest>,
+    body: Option<axum::extract::Json<RefreshTokenRequest>>,
 ) -> Result<impl IntoResponse, AppError> {
-    if let Some(token) = body
-        .refresh_token
-        .or_else(|| jar.get(REFRESH_COOKIE_NAME).map(|c| c.value().to_string()))
-    {
+    let token = body
+        .and_then(|b| b.refresh_token.clone())
+        .or_else(|| jar.get(REFRESH_COOKIE_NAME).map(|c| c.value().to_string()));
+
+    if let Some(token) = token {
         let _ = service.logout(&token).await;
     }
 
-    let updated_jar = jar.add(clear_refresh_cookie());
+    let updated_jar = jar.add(clear_refresh_cookie()).add(clear_access_cookie());
     let (status, resp) = BaseResponse::ok_msg("Logout successful");
     Ok((status, updated_jar, resp))
 }
@@ -133,7 +157,7 @@ pub async fn logout_all_handler(
     jar: CookieJar,
 ) -> Result<impl IntoResponse, AppError> {
     service.logout_all(auth_user.id).await?;
-    let updated_jar = jar.add(clear_refresh_cookie());
+    let updated_jar = jar.add(clear_refresh_cookie()).add(clear_access_cookie());
     let (status, resp) = BaseResponse::ok_msg("Logged out from all devices successfully");
     Ok((status, updated_jar, resp))
 }
@@ -145,7 +169,7 @@ pub async fn change_password_handler(
     ValidatedJson(req): ValidatedJson<ChangePasswordRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     service.change_password(auth_user.id, req).await?;
-    let updated_jar = jar.add(clear_refresh_cookie());
+    let updated_jar = jar.add(clear_refresh_cookie()).add(clear_access_cookie());
     let (status, resp) =
         BaseResponse::ok_msg("Password updated successfully. Please log in again.");
     Ok((status, updated_jar, resp))

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - ExaForge CI/CD Engine</title>
+    <!-- Brand Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24'/%3E%3Cstop offset='50%25' stop-color='%23f97316'/%3E%3Cstop offset='100%25' stop-color='%23ea580c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='%230a0d13'/%3E%3Cpath d='M18 36h64l-8 16H62l-6 26H44l-6-26H26z' fill='url(%23g)'/%3E%3Cpath d='M54 20L38 48h14l-6 24 22-30H54l6-22h-6z' fill='%23ffffff'/%3E%3C/svg%3E">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#f97316',
+                            600: '#ea580c',
+                        },
+                        darkbg: '#0a0d13',
+                        darkcard: '#12161f',
+                        darkborder: '#1e2430',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="bg-[#0a0d13] text-slate-200 font-sans min-h-screen antialiased flex flex-col justify-center items-center p-4 selection:bg-orange-500 selection:text-white">
+    <!-- Background Ambient Glow -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent blur-3xl rounded-full"></div>
+    </div>
+
+    <!-- Login Container Card -->
+    <div class="relative z-10 w-full max-w-md"
+        x-data="{
+            email: '',
+            password: '',
+            loading: false,
+            errorMessage: '',
+            async handleLogin() {
+                this.loading = true;
+                this.errorMessage = '';
+                try {
+                    const res = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: this.email.trim(),
+                            password: this.password
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.message || 'Invalid email or password');
+                    }
+                    // Extract optional return URL or redirect to dashboard
+                    const params = new URLSearchParams(window.location.search);
+                    const returnTo = params.get('return_to') || '/';
+                    window.location.href = returnTo;
+                } catch (err) {
+                    this.errorMessage = err.message || 'Authentication failed. Please check credentials.';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }">
+
+        <!-- Brand Logomark & Title -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1c2230] to-[#0e121a] border border-[#2b3547] shadow-xl shadow-orange-500/10 mb-4 p-2.5">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                    <defs>
+                        <linearGradient id="loginAnvil" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#fbbf24" />
+                            <stop offset="50%" stop-color="#f97316" />
+                            <stop offset="100%" stop-color="#ea580c" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M14 36H86L76 52H62L56 78H44L38 52H24L14 36Z" fill="url(#loginAnvil)" />
+                    <path d="M56 16L36 48H52L44 80L68 46H52L60 16H56Z" fill="#ffffff" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center justify-center space-x-2">
+                <span>ExaForge</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-mono">v0.1.0</span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Lightweight Self-Hosted CI/CD Engine &bull; Controller Console</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-[#12161f] border border-[#1e2430] rounded-xl shadow-2xl p-6 md:p-8 backdrop-blur">
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-white">Sign In to Dashboard</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Enter your credentials to access pipelines and cluster resources</p>
+            </div>
+
+            <!-- Error Notification Alert -->
+            <div x-show="errorMessage" x-cloak
+                class="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start space-x-2.5">
+                <svg class="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <span x-text="errorMessage" class="flex-1"></span>
+            </div>
+
+            <!-- Form -->
+            <form @submit.prevent="handleLogin" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5" for="email">Email Address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                            </svg>
+                        </div>
+                        <input id="email" type="email" required x-model="email" placeholder="admin@exaforge.local"
+                            class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition" />
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-medium text-slate-300" for="password">Password</label>
+                    </div>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <input id="password" type="password" required x-model="password" placeholder="••••••••"
+                            class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition" />
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" :disabled="loading"
+                        class="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-medium py-2.5 px-4 rounded-lg text-xs shadow-lg shadow-orange-500/20 disabled:opacity-50 transition">
+                        <svg x-show="loading" x-cloak class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-text="loading ? 'Authenticating...' : 'Sign In'"></span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Default Credential Notice -->
+            <div class="mt-6 pt-5 border-t border-[#1e2430] text-center">
+                <p class="text-[11px] text-slate-400">
+                    Default Administrator: <code class="bg-[#0a0d13] px-1.5 py-0.5 rounded text-orange-400 border border-[#1e2430]">admin@exaforge.local</code> / <code class="bg-[#0a0d13] px-1.5 py-0.5 rounded text-slate-300 border border-[#1e2430]">admin123456</code>
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-[11px] text-slate-500">
+            <span>Powered by ExaForge pure Rust Controller &bull; Axum &bull; Tokio</span>
+        </div>
+    </div>
+</body>
+
+</html>

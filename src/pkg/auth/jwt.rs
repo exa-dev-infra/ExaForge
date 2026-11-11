@@ -96,27 +96,46 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let auth_header = parts
+        let token = if let Some(auth_header) = parts
             .headers
             .get(axum::http::header::AUTHORIZATION)
             .and_then(|h| h.to_str().ok())
-            .ok_or_else(|| {
-                AppError::unauthorized("Authorization header missing", CODE_UNAUTHORIZED)
-            })?;
-
-        if !auth_header.starts_with("Bearer ") {
-            return Err(AppError::unauthorized(
-                "Invalid Authorization scheme, must be Bearer",
-                CODE_UNAUTHORIZED,
-            ));
-        }
-
-        let token = &auth_header[7..];
+        {
+            if !auth_header.starts_with("Bearer ") {
+                return Err(AppError::unauthorized(
+                    "Invalid Authorization scheme, must be Bearer",
+                    CODE_UNAUTHORIZED,
+                ));
+            }
+            auth_header[7..].to_string()
+        } else if let Some(cookie_header) = parts
+            .headers
+            .get(axum::http::header::COOKIE)
+            .and_then(|h| h.to_str().ok())
+        {
+            cookie_header
+                .split(';')
+                .find_map(|pair| {
+                    let mut kv = pair.trim().splitn(2, '=');
+                    let k = kv.next()?;
+                    let v = kv.next()?;
+                    if k == "access_token" || k == "token" {
+                        Some(v.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| {
+                    AppError::unauthorized("Authentication required", CODE_UNAUTHORIZED)
+                })?
+        } else {
+            return Err(AppError::unauthorized("Authentication required", CODE_UNAUTHORIZED));
+        };
 
         // Read JWT secret from environment
         let secret = std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
-        let claims = verify_access_token(token, &secret)?;
+        let claims = verify_access_token(&token, &secret)?;
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
             AppError::unauthorized("Invalid user ID in token", CODE_INVALID_ACCESS_TOKEN)
@@ -209,12 +228,9 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        match parts.headers.get(axum::http::header::AUTHORIZATION) {
-            Some(_) => {
-                let user = AuthenticatedUser::from_request_parts(parts, state).await?;
-                Ok(OptionalAuthUser(Some(user)))
-            }
-            None => Ok(OptionalAuthUser(None)),
+        match AuthenticatedUser::from_request_parts(parts, state).await {
+            Ok(user) => Ok(OptionalAuthUser(Some(user))),
+            Err(_) => Ok(OptionalAuthUser(None)),
         }
     }
 }

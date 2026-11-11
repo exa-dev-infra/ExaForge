@@ -109,6 +109,10 @@ pub struct UsersTemplate {
     pub services: Vec<ServiceRecord>,
 }
 
+#[derive(Template)]
+#[template(path = "login.html")]
+pub struct LoginTemplate;
+
 #[derive(Clone)]
 pub struct WebContext {
     pub project_service: Arc<ProjectService>,
@@ -236,8 +240,81 @@ pub async fn users_view(
     })
 }
 
+pub async fn login_view(headers: axum::http::HeaderMap) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let token = headers
+        .get(axum::http::header::COOKIE)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|cookie_str| {
+            cookie_str.split(';').find_map(|pair| {
+                let mut kv = pair.trim().splitn(2, '=');
+                let k = kv.next()?;
+                let v = kv.next()?;
+                if k == "access_token" || k == "token" {
+                    Some(v.to_string())
+                } else {
+                    None
+                }
+            })
+        });
+
+    let secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
+
+    if let Some(t) = token {
+        if crate::pkg::auth::jwt::verify_access_token(&t, &secret).is_ok() {
+            return axum::response::Redirect::to("/").into_response();
+        }
+    }
+
+    LoginTemplate.into_response()
+}
+
+pub async fn web_auth_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let token = req
+        .headers()
+        .get(axum::http::header::COOKIE)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|cookie_str| {
+            cookie_str.split(';').find_map(|pair| {
+                let mut kv = pair.trim().splitn(2, '=');
+                let k = kv.next()?;
+                let v = kv.next()?;
+                if k == "access_token" || k == "token" {
+                    Some(v.to_string())
+                } else {
+                    None
+                }
+            })
+        });
+
+    let secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
+
+    let is_valid = match token {
+        Some(t) => crate::pkg::auth::jwt::verify_access_token(&t, &secret).is_ok(),
+        None => false,
+    };
+
+    if !is_valid {
+        let path = req.uri().path();
+        let redirect_url = if path != "/" {
+            format!("/login?return_to={}", path)
+        } else {
+            "/login".to_string()
+        };
+        return axum::response::Redirect::to(&redirect_url).into_response();
+    }
+
+    next.run(req).await
+}
+
 pub fn web_router(ctx: WebContext) -> Router {
-    Router::new()
+    let protected = Router::new()
         .route("/", get(dashboard_view))
         .route("/projects", get(projects_view))
         .route("/pipelines", get(pipelines_history_view))
@@ -245,5 +322,12 @@ pub fn web_router(ctx: WebContext) -> Router {
         .route("/agents", get(agents_view))
         .route("/secrets", get(secrets_view))
         .route("/users", get(users_view))
+        .layer(axum::middleware::from_fn(web_auth_middleware));
+
+    let public = Router::new().route("/login", get(login_view));
+
+    Router::new()
+        .merge(protected)
+        .merge(public)
         .with_state(ctx)
 }

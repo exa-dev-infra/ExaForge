@@ -249,6 +249,11 @@
                 <div class="flex items-center space-x-3"
                     x-data="{
                         currentUser: null,
+                        changePasswordModal: false,
+                        changePasswordData: { current_password: '', new_password: '', confirm_password: '' },
+                        changePasswordLoading: false,
+                        changePasswordError: '',
+                        changePasswordSuccess: '',
                         async init() {
                             try {
                                 const res = await fetch('/api/v1/auth/me');
@@ -273,6 +278,43 @@
                             document.cookie = 'access_token=; Max-Age=0; path=/;';
                             document.cookie = 'refresh_token=; Max-Age=0; path=/api/v1/auth;';
                             window.location.href = '/login';
+                        },
+                        async submitChangePassword() {
+                            this.changePasswordError = '';
+                            this.changePasswordSuccess = '';
+                            if (this.changePasswordData.new_password !== this.changePasswordData.confirm_password) {
+                                this.changePasswordError = 'Konfirmasi password baru tidak cocok';
+                                return;
+                            }
+                            if (this.changePasswordData.new_password.length < 8) {
+                                this.changePasswordError = 'Password baru minimal 8 karakter';
+                                return;
+                            }
+                            this.changePasswordLoading = true;
+                            try {
+                                const res = await fetch('/api/v1/auth/change-password', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        current_password: this.changePasswordData.current_password,
+                                        new_password: this.changePasswordData.new_password
+                                    })
+                                });
+                                const data = await res.json();
+                                if (!res.ok) {
+                                    throw new Error(data.message || 'Gagal mengubah password');
+                                }
+                                this.changePasswordSuccess = 'Password berhasil diubah! Mengalihkan ke login...';
+                                setTimeout(() => {
+                                    document.cookie = 'access_token=; Max-Age=0; path=/;';
+                                    document.cookie = 'refresh_token=; Max-Age=0; path=/api/v1/auth;';
+                                    window.location.href = '/login';
+                                }, 1500);
+                            } catch (e) {
+                                this.changePasswordError = e.message;
+                            } finally {
+                                this.changePasswordLoading = false;
+                            }
                         }
                     }">
                     <div class="hidden sm:flex items-center space-x-2 text-xs text-slate-400 bg-[#12161f] border border-[#1e2430] px-3 py-1.5 rounded-full">
@@ -280,7 +322,7 @@
                         <span>Postgres Connected</span>
                     </div>
 
-                    <!-- User Profile & Sign Out Pill -->
+                    <!-- User Profile & Actions Pill -->
                     <div class="flex items-center space-x-2 bg-[#12161f] border border-[#1e2430] pl-2.5 pr-1.5 py-1 rounded-lg">
                         <div class="w-6 h-6 rounded-md bg-gradient-to-tr from-orange-600 to-amber-500 text-white font-bold text-[10px] flex items-center justify-center shadow-sm">
                             <span x-text="currentUser ? (currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U') : 'A'">A</span>
@@ -289,12 +331,95 @@
                             <div class="text-[11px] font-medium text-white max-w-[120px] truncate" x-text="currentUser ? currentUser.name : 'Super Admin'">Super Admin</div>
                             <div class="text-[9px] text-orange-400 font-mono uppercase tracking-wider" x-text="currentUser ? currentUser.role : 'super_admin'">super_admin</div>
                         </div>
+                        <!-- Change Password Button -->
+                        <button @click="changePasswordModal = true; changePasswordError = ''; changePasswordSuccess = ''; changePasswordData = { current_password: '', new_password: '', confirm_password: '' };" title="Ubah Password"
+                            class="p-1 text-slate-400 hover:text-orange-400 hover:bg-[#1a202c] rounded transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                        </button>
+                        <!-- Sign Out Button -->
                         <button @click="logout()" title="Sign Out"
                             class="p-1 text-slate-400 hover:text-red-400 hover:bg-[#1a202c] rounded transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                             </svg>
                         </button>
+                    </div>
+
+                    <!-- Change Password Modal -->
+                    <div x-show="changePasswordModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
+                        aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                        <div class="flex items-center justify-center min-h-screen p-4 text-center">
+                            <div x-show="changePasswordModal" x-transition:enter="ease-out duration-300"
+                                x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                                x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100"
+                                x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+                                @click="changePasswordModal = false"></div>
+
+                            <div x-show="changePasswordModal" x-transition:enter="ease-out duration-300"
+                                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                                x-transition:leave="ease-in duration-200"
+                                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                                class="relative bg-[#12161f] border border-[#1e2430] rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:max-w-md w-full p-6">
+                                
+                                <div class="flex items-center justify-between pb-3 border-b border-[#1e2430]">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                                            </svg>
+                                        </div>
+                                        <h3 class="text-sm font-semibold text-white">Ubah Password Akun</h3>
+                                    </div>
+                                    <button @click="changePasswordModal = false" class="text-slate-400 hover:text-white transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Alert Messages -->
+                                <div x-show="changePasswordError" x-cloak
+                                    class="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center space-x-2">
+                                    <span x-text="changePasswordError"></span>
+                                </div>
+                                <div x-show="changePasswordSuccess" x-cloak
+                                    class="mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2">
+                                    <span x-text="changePasswordSuccess"></span>
+                                </div>
+
+                                <form @submit.prevent="submitChangePassword" class="space-y-4 mt-4 text-xs">
+                                    <div>
+                                        <label class="block font-medium text-slate-300 mb-1">Password Saat Ini</label>
+                                        <input type="password" required x-model="changePasswordData.current_password" placeholder="••••••••"
+                                            class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                                    </div>
+                                    <div>
+                                        <label class="block font-medium text-slate-300 mb-1">Password Baru (min. 8 karakter)</label>
+                                        <input type="password" required minlength="8" x-model="changePasswordData.new_password" placeholder="••••••••"
+                                            class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                                    </div>
+                                    <div>
+                                        <label class="block font-medium text-slate-300 mb-1">Konfirmasi Password Baru</label>
+                                        <input type="password" required minlength="8" x-model="changePasswordData.confirm_password" placeholder="••••••••"
+                                            class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                                    </div>
+                                    <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#1e2430]">
+                                        <button type="button" @click="changePasswordModal = false"
+                                            class="px-4 py-2 bg-[#1e2430] hover:bg-[#283142] text-slate-300 rounded-lg transition">
+                                            Batal
+                                        </button>
+                                        <button type="submit" :disabled="changePasswordLoading"
+                                            class="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-medium rounded-lg shadow-lg shadow-orange-500/20 disabled:opacity-50 transition">
+                                            <span x-text="changePasswordLoading ? 'Menyimpan...' : 'Simpan Password Baru'"></span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>

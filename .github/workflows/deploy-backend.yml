@@ -71,3 +71,27 @@ jobs:
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
+
+  # ==========================================
+  # 3. Force Rollout Restart for KEDA Zero-Scale Pods
+  # ==========================================
+  restart:
+    name: Restart K8s Deployment
+    needs: deploy
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Force Rollout Restart
+        run: |
+          ssh-keyscan -p 31080 -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          ssh -p 31080 deploy@${{ secrets.VPS_HOST }} << 'EOF'
+          export KUBECONFIG=/home/deploy/.kube/config
+          kubectl rollout restart deployment/exaforge -n exaforge
+          kubectl rollout status deployment/exaforge -n exaforge --timeout=120s
+          kubectl get pods -n exaforge
+          EOF

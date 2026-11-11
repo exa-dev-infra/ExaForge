@@ -160,10 +160,16 @@
                                 {{ u.created_at.format("%Y-%m-%d %H:%M") }}
                             </td>
                             <td class="px-6 py-4 text-right">
+                                {% if users.len() <= 1 || u.role == "super_admin" %}
+                                <span class="text-xs text-slate-500 font-mono px-2 py-0.5 rounded bg-[#161b22] border border-[#21262d]">
+                                    Protected
+                                </span>
+                                {% else %}
                                 <button @click="deleteUser('{{ u.id }}')"
                                     class="text-xs text-rose-400 hover:text-rose-300 transition hover:underline">
                                     Delete
                                 </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

@@ -258,8 +258,7 @@ pub async fn login_view(headers: axum::http::HeaderMap) -> axum::response::Respo
             })
         });
 
-    let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
+    let secret = crate::pkg::auth::jwt::get_jwt_secret();
 
     if let Some(t) = token {
         if crate::pkg::auth::jwt::verify_access_token(&t, &secret).is_ok() {
@@ -292,8 +291,7 @@ pub async fn web_auth_middleware(
             })
         });
 
-    let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
+    let secret = crate::pkg::auth::jwt::get_jwt_secret();
 
     let is_valid = match token {
         Some(t) => crate::pkg::auth::jwt::verify_access_token(&t, &secret).is_ok(),

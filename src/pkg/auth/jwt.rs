@@ -33,6 +33,12 @@ pub struct TokenPair {
     pub token_type: String,
 }
 
+pub fn get_jwt_secret() -> String {
+    std::env::var("JWT_ACCESS_SECRET")
+        .or_else(|_| std::env::var("JWT_SECRET"))
+        .unwrap_or_else(|_| "super-secret-jwt-key-replace-this-in-production-12345".to_string())
+}
+
 pub fn generate_token_pair(
     user_id: &Uuid,
     email: &str,
@@ -133,8 +139,7 @@ where
         };
 
         // Read JWT secret from environment
-        let secret = std::env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "default_secret_key_change_in_production".to_string());
+        let secret = get_jwt_secret();
         let claims = verify_access_token(&token, &secret)?;
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {

@@ -143,6 +143,26 @@ impl UserService {
 
     /// Soft delete user by ID (`is_active = false`) and revoke all sessions.
     pub async fn delete_user(&self, id: Uuid) -> Result<(), AppError> {
+        let total_active = self.repo.count_active(&self.pool).await?;
+        if total_active <= 1 {
+            return Err(AppError::bad_request(
+                "Cannot delete or deactivate the last remaining user in the system.",
+                crate::constants::codes::CODE_BAD_REQUEST,
+            ));
+        }
+
+        if let Some(target) = self.repo.find_by_id(&self.pool, id).await? {
+            if target.role == "super_admin" {
+                let super_admins = self.repo.count_active_super_admins(&self.pool).await?;
+                if super_admins <= 1 {
+                    return Err(AppError::bad_request(
+                        "Cannot delete or deactivate the last remaining Super Administrator.",
+                        crate::constants::codes::CODE_BAD_REQUEST,
+                    ));
+                }
+            }
+        }
+
         let mut tx = self.pool.begin().await.map_err(AppError::Database)?;
 
         self.repo.delete(&mut tx, id).await?;
@@ -155,6 +175,26 @@ impl UserService {
 
     /// Hard delete user permanently from the database.
     pub async fn hard_delete_user(&self, id: Uuid) -> Result<(), AppError> {
+        let total_active = self.repo.count_active(&self.pool).await?;
+        if total_active <= 1 {
+            return Err(AppError::bad_request(
+                "Cannot delete the last remaining user in the system.",
+                crate::constants::codes::CODE_BAD_REQUEST,
+            ));
+        }
+
+        if let Some(target) = self.repo.find_by_id(&self.pool, id).await? {
+            if target.role == "super_admin" {
+                let super_admins = self.repo.count_active_super_admins(&self.pool).await?;
+                if super_admins <= 1 {
+                    return Err(AppError::bad_request(
+                        "Cannot delete the last remaining Super Administrator.",
+                        crate::constants::codes::CODE_BAD_REQUEST,
+                    ));
+                }
+            }
+        }
+
         let mut tx = self.pool.begin().await.map_err(AppError::Database)?;
 
         self.repo.hard_delete(&mut tx, id).await?;

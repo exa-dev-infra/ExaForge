@@ -71,6 +71,8 @@ pub trait UserRepository: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<UserResponse>, i64), AppError>;
+    async fn count_active(&self, pool: &PgPool) -> Result<i64, AppError>;
+    async fn count_active_super_admins(&self, pool: &PgPool) -> Result<i64, AppError>;
 }
 
 #[derive(Clone, Default)]
@@ -317,5 +319,25 @@ impl UserRepository for PostgresUserRepository {
         let total: i64 = count_row.try_get("count").unwrap_or(0);
 
         Ok((users, total))
+    }
+
+    async fn count_active(&self, pool: &PgPool) -> Result<i64, AppError> {
+        let sql = "SELECT COUNT(*) as count FROM users WHERE is_active = true";
+        let row = sqlx::query(sql)
+            .fetch_one(pool)
+            .await
+            .map_err(AppError::Database)?;
+        let count: i64 = row.try_get("count").unwrap_or(0);
+        Ok(count)
+    }
+
+    async fn count_active_super_admins(&self, pool: &PgPool) -> Result<i64, AppError> {
+        let sql = "SELECT COUNT(*) as count FROM users WHERE is_active = true AND role = 'super_admin'";
+        let row = sqlx::query(sql)
+            .fetch_one(pool)
+            .await
+            .map_err(AppError::Database)?;
+        let count: i64 = row.try_get("count").unwrap_or(0);
+        Ok(count)
     }
 }

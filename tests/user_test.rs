@@ -151,6 +151,14 @@ impl UserRepository for MockUserRepo {
         }];
         Ok((users, 1))
     }
+
+    async fn count_active(&self, _pool: &PgPool) -> Result<i64, AppError> {
+        Ok(5)
+    }
+
+    async fn count_active_super_admins(&self, _pool: &PgPool) -> Result<i64, AppError> {
+        Ok(2)
+    }
 }
 
 // Mock AuthRepository

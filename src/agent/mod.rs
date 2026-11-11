@@ -134,7 +134,7 @@ impl WorkerAgentDaemon {
                         job_id,
                         pipeline_id: _,
                         repo_url,
-                        git_ref: _,
+                        git_ref,
                         git_commit_sha,
                         timeout_seconds,
                         steps,
@@ -179,7 +179,7 @@ impl WorkerAgentDaemon {
                             };
 
                             log_line(format!("==> Synchronizing Git repository cache for {}", repo_url), false);
-                            if let Err(e) = git_cache.checkout_workspace(&repo_url, &git_commit_sha, &workspace_dir).await {
+                            if let Err(e) = git_cache.checkout_workspace(&repo_url, &git_ref, &git_commit_sha, &workspace_dir).await {
                                 log_line(format!("[error] Git checkout failed: {}", e), true);
                                 job_failed = true;
                                 error_msg = Some(e.to_string());

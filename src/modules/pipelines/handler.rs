@@ -59,6 +59,14 @@ pub async fn cancel_pipeline_handler(
     Ok(BaseResponse::success(true, "Pipeline cancelled successfully"))
 }
 
+pub async fn rerun_pipeline_handler(
+    State((pipeline_service, _)): State<(Arc<PipelineService>, Arc<ProjectService>)>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let pipeline = pipeline_service.rerun_pipeline(id).await?;
+    Ok(BaseResponse::created(pipeline, "Pipeline re-run triggered successfully"))
+}
+
 pub async fn get_job_handler(
     State((pipeline_service, _)): State<(Arc<PipelineService>, Arc<ProjectService>)>,
     Path(id): Path<Uuid>,

@@ -314,3 +314,53 @@ fn test_pipeline_history_query_and_dto() {
     assert!(item_json.contains("feat: add execution history"));
 }
 
+#[tokio::test]
+async fn test_git_cache_manager_pipeline_file_resolution() {
+    use std::process::Command;
+    use exaforge::agent::git_cache::GitCacheManager;
+
+    let base_temp = std::env::temp_dir().join(format!("exaforge_test_{}", Uuid::new_v4()));
+    let repo_dir = base_temp.join("mock_repo");
+    let cache_dir = base_temp.join("cache");
+    let workspace_dir = base_temp.join("workspace");
+
+    tokio::fs::create_dir_all(&repo_dir).await.expect("Create repo dir");
+
+    // Initialize mock git repo
+    Command::new("git").arg("init").current_dir(&repo_dir).output().expect("git init");
+    Command::new("git").args(["config", "user.name", "CI Bot"]).current_dir(&repo_dir).output().expect("git config user");
+    Command::new("git").args(["config", "user.email", "bot@exaforge.local"]).current_dir(&repo_dir).output().expect("git config email");
+
+    let ci_content = "name: Mock Pipeline\njobs:\n  test:\n    name: Test Job\n    steps:\n      - run: echo 'success'\n";
+    tokio::fs::write(repo_dir.join(".ci.yaml"), ci_content).await.expect("Write .ci.yaml");
+
+    Command::new("git").args(["add", "."]).current_dir(&repo_dir).output().expect("git add");
+    Command::new("git").args(["commit", "-m", "feat: initial commit for pipeline"]).current_dir(&repo_dir).output().expect("git commit");
+
+    let git_cache = GitCacheManager::new(cache_dir);
+    let repo_url_str = repo_dir.to_str().unwrap();
+
+    // 1. Read pipeline file from git repo
+    let read_ci = git_cache.read_pipeline_file(repo_url_str, "main", ".ci.yaml").await
+        .expect("Read pipeline file");
+    assert!(read_ci.contains("Mock Pipeline"));
+
+    // 2. Resolve commit SHA
+    let sha = git_cache.resolve_commit_sha(repo_url_str, "main").await
+        .expect("Resolve commit SHA");
+    assert_eq!(sha.len(), 40);
+
+    // 3. Resolve commit message
+    let msg = git_cache.resolve_commit_message(repo_url_str, "main").await
+        .expect("Resolve commit message");
+    assert!(msg.contains("feat: initial commit"));
+
+    // 4. Checkout workspace with clean reset
+    git_cache.checkout_workspace(repo_url_str, "main", &sha, &workspace_dir).await
+        .expect("Checkout workspace");
+    assert!(workspace_dir.join(".ci.yaml").exists());
+
+    // Clean up
+    let _ = tokio::fs::remove_dir_all(&base_temp).await;
+}
+

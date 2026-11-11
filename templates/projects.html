@@ -232,6 +232,26 @@
         } finally {
             this.historyLoading = false;
         }
+    },
+
+    rerunLoading: {},
+    async rerunPipeline(id) {
+        if (!confirm('Re-run this pipeline execution now?')) return;
+        this.rerunLoading[id] = true;
+        try {
+            const res = await fetch(`/api/v1/pipelines/${id}/rerun`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to re-run pipeline');
+            if (data.data && data.data.id) {
+                window.location.href = `/pipelines/${data.data.id}`;
+            } else {
+                window.location.reload();
+            }
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            this.rerunLoading[id] = false;
+        }
     }
 }">
     <!-- Header -->
@@ -684,10 +704,17 @@
                             </div>
 
                             <!-- Right actions & time -->
-                            <div class="flex items-center space-x-4 shrink-0">
-                                <span class="text-[11px] text-slate-500 font-mono" x-text="new Date(p.created_at).toLocaleString()"></span>
+                            <div class="flex items-center space-x-2 shrink-0">
+                                <span class="text-[11px] text-slate-500 font-mono hidden sm:inline" x-text="new Date(p.created_at).toLocaleString()"></span>
+                                <button type="button" @click="rerunPipeline(p.id)"
+                                    :disabled="rerunLoading[p.id]"
+                                    class="px-2.5 py-1 bg-[#1e2430] hover:bg-[#2b3547] disabled:opacity-50 text-slate-300 hover:text-white border border-[#30363d] rounded-lg text-xs font-medium transition"
+                                    title="Re-run this pipeline">
+                                    <span x-show="!rerunLoading[p.id]">🔄 Re-run</span>
+                                    <span x-show="rerunLoading[p.id]">...</span>
+                                </button>
                                 <a :href="`/pipelines/${p.id}`"
-                                    class="px-3 py-1.5 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                                    class="px-3 py-1 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 rounded-lg text-xs font-medium transition flex items-center space-x-1">
                                     <span>View Logs</span>
                                     <span>⚡</span>
                                 </a>

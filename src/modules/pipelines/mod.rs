@@ -24,6 +24,7 @@ pub fn router(service: Arc<PipelineService>, project_service: Arc<ProjectService
         .route("/pipelines", get(handler::list_pipelines_handler))
         .route("/pipelines/:id", get(handler::get_pipeline_handler))
         .route("/pipelines/:id/cancel", post(handler::cancel_pipeline_handler))
+        .route("/pipelines/:id/rerun", post(handler::rerun_pipeline_handler))
         .route("/services/:service_id/pipelines", get(handler::list_service_pipelines_handler))
         .route("/jobs/:id", get(handler::get_job_handler))
         .route("/jobs/:id/logs", get(handler::get_job_logs_handler))

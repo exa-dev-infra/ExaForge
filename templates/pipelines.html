@@ -3,7 +3,7 @@
 {% block title %}Pipeline Runs & Execution History - ExaForge{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="pipelinesHistoryData()">
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#1e2430]">
         <div>
@@ -203,11 +203,20 @@
 
                         <!-- Action Button -->
                         <td class="px-5 py-3.5 text-right">
-                            <a href="/pipelines/{{ p.id }}"
-                                class="inline-flex items-center px-3 py-1 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 hover:text-orange-200 border border-orange-500/30 rounded-lg text-xs font-medium transition shadow-sm">
-                                <span>View Logs</span>
-                                <span class="ml-1 text-xs">⚡</span>
-                            </a>
+                            <div class="inline-flex items-center space-x-2">
+                                <button type="button" @click="rerunPipeline('{{ p.id }}')"
+                                    :disabled="rerunLoading['{{ p.id }}']"
+                                    class="inline-flex items-center px-2.5 py-1 bg-[#1e2430] hover:bg-[#2b3547] disabled:opacity-50 text-slate-300 hover:text-white border border-[#30363d] rounded-lg text-xs font-medium transition"
+                                    title="Re-run this pipeline">
+                                    <span x-show="!rerunLoading['{{ p.id }}']">🔄 Re-run</span>
+                                    <span x-show="rerunLoading['{{ p.id }}']">...</span>
+                                </button>
+                                <a href="/pipelines/{{ p.id }}"
+                                    class="inline-flex items-center px-3 py-1 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 hover:text-orange-200 border border-orange-500/30 rounded-lg text-xs font-medium transition shadow-sm">
+                                    <span>View Logs</span>
+                                    <span class="ml-1 text-xs">⚡</span>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -242,4 +251,30 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    function pipelinesHistoryData() {
+        return {
+            rerunLoading: {},
+            async rerunPipeline(id) {
+                if (!confirm('Re-run this pipeline execution now?')) return;
+                this.rerunLoading[id] = true;
+                try {
+                    const res = await fetch(`/api/v1/pipelines/${id}/rerun`, { method: 'POST' });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to re-run pipeline');
+                    if (data.data && data.data.id) {
+                        window.location.href = `/pipelines/${data.data.id}`;
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    this.rerunLoading[id] = false;
+                }
+            }
+        };
+    }
+</script>
 {% endblock %}

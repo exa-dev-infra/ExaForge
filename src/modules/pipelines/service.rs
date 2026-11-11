@@ -3,10 +3,11 @@ use std::{
     sync::Arc,
 };
 use sqlx::PgPool;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::{
+    agent::git_cache::GitCacheManager,
     constants::codes::{CODE_JOB_NOT_FOUND, CODE_PIPELINE_NOT_FOUND},
     modules::{
         agents::{
@@ -65,7 +66,7 @@ impl PipelineService {
     ) -> Result<PipelineRecord, AppError> {
         let service = self.project_service.get_service(service_id).await?;
 
-        // 1. Parse pipeline config (or use default simple CI config if not provided)
+        // 1. Resolve pipeline config: provided directly or read from git repository via GitCacheManager
         let default_config = r#"
 name: Default Pipeline
 concurrency:
@@ -76,13 +77,54 @@ jobs:
     name: Build & Verify
     tags: ["linux", "docker"]
     steps:
-      - name: Checkout & Test
+      - name: Verify Workspace
         run: |
-          echo "Building commit ${CI_COMMIT_SHA} on ref ${CI_REF}..."
-          git status
+          echo "No .ci.yaml configuration file was found in repository."
+          echo "Workspace checked out for commit ${CI_COMMIT_SHA} on ref ${CI_REF}."
+          echo "To define build and test steps, add a .ci.yaml file to your repository."
 "#;
-        let config_str = pipeline_config_raw.unwrap_or(default_config);
-        let config: PipelineConfig = parse_pipeline_config(config_str)?;
+
+        let (config_str_resolved, final_commit_sha, final_commit_msg) = if let Some(raw) = pipeline_config_raw {
+            (raw.to_string(), git_commit_sha.to_string(), git_commit_message.map(|m| m.to_string()))
+        } else {
+            let git_cache = GitCacheManager::new(GitCacheManager::default_dir());
+            match git_cache.read_pipeline_file(&service.repo_url, git_ref, &service.pipeline_file).await {
+                Ok(content) => {
+                    let sha = if git_commit_sha.is_empty() || git_commit_sha == "HEAD" {
+                        git_cache.resolve_commit_sha(&service.repo_url, git_ref).await.unwrap_or_else(|_| "HEAD".to_string())
+                    } else {
+                        git_commit_sha.to_string()
+                    };
+                    let msg = if let Some(m) = git_commit_message {
+                        Some(m.to_string())
+                    } else {
+                        git_cache.resolve_commit_message(&service.repo_url, git_ref).await.ok()
+                    };
+                    info!(
+                        service = %service.slug,
+                        file = %service.pipeline_file,
+                        sha = %sha,
+                        "Successfully loaded pipeline specification from Git repository"
+                    );
+                    (content, sha, msg)
+                }
+                Err(e) => {
+                    warn!(
+                        service = %service.slug,
+                        file = %service.pipeline_file,
+                        error = %e,
+                        "Pipeline file could not be loaded from git repo; falling back to default build pipeline"
+                    );
+                    (
+                        default_config.to_string(),
+                        git_commit_sha.to_string(),
+                        git_commit_message.map(|m| m.to_string()),
+                    )
+                }
+            }
+        };
+
+        let config: PipelineConfig = parse_pipeline_config(&config_str_resolved)?;
 
         let concurrency_group = config.concurrency.as_ref()
             .and_then(|c| if c.group.is_empty() || c.group == "default" { None } else { Some(c.group.clone()) })
@@ -110,7 +152,7 @@ jobs:
                 final_inputs.insert(k, v);
             }
         }
-        final_inputs.insert("CI_COMMIT_SHA".to_string(), git_commit_sha.to_string());
+        final_inputs.insert("CI_COMMIT_SHA".to_string(), final_commit_sha.clone());
         final_inputs.insert("CI_REF".to_string(), git_ref.to_string());
 
         let inputs_json = serde_json::to_value(&final_inputs).unwrap_or_else(|_| serde_json::json!({}));
@@ -126,8 +168,8 @@ jobs:
             trigger_type,
             trigger_user_id,
             git_ref,
-            git_commit_sha,
-            git_commit_message,
+            &final_commit_sha,
+            final_commit_msg.as_deref(),
             Some(&concurrency_group),
             cancel_in_progress,
             inputs_json,
@@ -163,7 +205,7 @@ jobs:
                     job_rec,
                     &service.repo_url,
                     git_ref,
-                    git_commit_sha,
+                    &final_commit_sha,
                     job_cfg.steps,
                     job_cfg.env,
                     &final_inputs,
@@ -301,5 +343,25 @@ jobs:
     pub async fn get_job_logs(&self, job_id: Uuid) -> Result<Vec<String>, AppError> {
         let records = self.repo.get_job_logs(&self.pool, job_id).await?;
         Ok(records.into_iter().map(|r| r.line).collect())
+    }
+
+    /// Re-runs an existing pipeline using identical service, git_ref, and inputs
+    pub async fn rerun_pipeline(&self, pipeline_id: Uuid) -> Result<PipelineRecord, AppError> {
+        let old = self.repo.find_pipeline_by_id(&self.pool, pipeline_id).await?
+            .ok_or_else(|| AppError::not_found("Pipeline not found", CODE_PIPELINE_NOT_FOUND))?;
+
+        let runtime_inputs: Option<HashMap<String, String>> = serde_json::from_value(old.inputs).ok();
+
+        self.trigger_pipeline(
+            old.project_id,
+            old.service_id,
+            "manual_rerun",
+            None,
+            &old.git_ref,
+            &old.git_commit_sha,
+            old.git_commit_message.as_deref(),
+            runtime_inputs,
+            None,
+        ).await
     }
 }

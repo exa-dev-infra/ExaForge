@@ -33,6 +33,12 @@
                     Cancel Pipeline ✖
                 </button>
             </template>
+            <button @click="rerunPipeline()"
+                :disabled="isRerunning"
+                class="px-3.5 py-1.5 bg-orange-600/20 hover:bg-orange-600/40 disabled:opacity-50 text-orange-300 border border-orange-500/30 rounded-lg text-xs font-medium transition flex items-center space-x-1.5">
+                <span x-show="!isRerunning">🔄 Re-run Pipeline</span>
+                <span x-show="isRerunning">Triggering Re-run...</span>
+            </button>
         </div>
     </div>
 
@@ -181,6 +187,26 @@
                         .then(() => {
                             this.status = 'cancelled';
                         });
+                }
+            },
+
+            isRerunning: false,
+            async rerunPipeline() {
+                if (!confirm('Re-run this pipeline with identical commit and configuration?')) return;
+                this.isRerunning = true;
+                try {
+                    const res = await fetch(`/api/v1/pipelines/${this.pipelineId}/rerun`, { method: 'POST' });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to re-run pipeline');
+                    if (data.data && data.data.id) {
+                        window.location.href = `/pipelines/${data.data.id}`;
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    this.isRerunning = false;
                 }
             },
 

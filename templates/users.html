@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Users & RBAC - ExaForge{% endblock %}
+{% block title %}Users & Access - ExaForge{% endblock %}
 
 {% block content %}
 <div class="space-y-8" x-data="{
@@ -62,8 +62,8 @@
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-[#21262d]">
         <div>
-            <h1 class="text-2xl font-bold text-white tracking-tight">Users & Access Control (RBAC)</h1>
-            <p class="text-sm text-slate-400 mt-1">Manage global user credentials, system roles, and fine-grained project/service access.</p>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Users & Access Control</h1>
+            <p class="text-sm text-slate-400 mt-1">Manage user accounts, roles, and project access permissions.</p>
         </div>
         <div class="flex items-center space-x-3">
             <button @click="projectMemberModal = true"

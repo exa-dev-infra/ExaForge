@@ -198,27 +198,23 @@
                             <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                             </svg>
-                            <span>Users & RBAC</span>
+                            <span>Users & Access</span>
                         </a>
                     </nav>
                 </div>
             </div>
 
             <!-- Sidebar Footer -->
-            <div class="p-4 border-t border-[#1e2430] bg-[#0a0d13]/80 space-y-3">
+            <div class="p-4 border-t border-[#1e2430] bg-[#0a0d13]/80 space-y-2">
                 <div class="flex items-center justify-between text-xs">
                     <div class="flex items-center space-x-2 text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span class="font-mono text-[11px]">Controller Live</span>
+                        <span class="text-[11px]">System Online</span>
                     </div>
-                    <span class="text-[10px] px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-mono font-medium">Rust Engine</span>
-                </div>
-                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-[#1e2430]">
-                    <a href="https://github.com/exa-dev-infra/ExaForge" target="_blank" class="hover:text-orange-400 transition flex items-center space-x-1">
+                    <a href="https://github.com/exa-dev-infra/ExaForge" target="_blank" class="text-[11px] text-slate-400 hover:text-orange-400 transition flex items-center space-x-1">
                         <span>GitHub</span>
                         <span>↗</span>
                     </a>
-                    <a href="/health" target="_blank" class="hover:text-emerald-400 transition font-mono">/health</a>
                 </div>
             </div>
         </aside>
@@ -235,13 +231,9 @@
                         </svg>
                     </button>
 
-                    <!-- Breadcrumbs Context -->
-                    <div class="flex items-center space-x-2 text-xs font-mono">
-                        <span class="text-slate-500 hidden sm:inline">cluster:</span>
-                        <span class="text-orange-400 font-semibold bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">eka-dev</span>
-                        <span class="text-slate-600">/</span>
-                        <span class="text-slate-500 hidden sm:inline">ns:</span>
-                        <span class="text-slate-300 bg-[#151a24] px-2 py-0.5 rounded">exaforge</span>
+                    <!-- Workspace Title Badge -->
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="text-orange-400 font-semibold bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20">ExaForge Console</span>
                     </div>
                 </div>
 
@@ -317,11 +309,6 @@
                             }
                         }
                     }">
-                    <div class="hidden sm:flex items-center space-x-2 text-xs text-slate-400 bg-[#12161f] border border-[#1e2430] px-3 py-1.5 rounded-full">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        <span>Postgres Connected</span>
-                    </div>
-
                     <!-- User Profile & Actions Pill -->
                     <div class="flex items-center space-x-2 bg-[#12161f] border border-[#1e2430] pl-2.5 pr-1.5 py-1 rounded-lg">
                         <div class="w-6 h-6 rounded-md bg-gradient-to-tr from-orange-600 to-amber-500 text-white font-bold text-[10px] flex items-center justify-center shadow-sm">
@@ -434,9 +421,9 @@
                 <div class="flex items-center space-x-2">
                     <span class="text-orange-400 font-bold">ExaForge</span>
                     <span>&bull;</span>
-                    <span>The Self-Hosted High-Performance CI/CD Engine</span>
+                    <span>Self-Hosted CI/CD Automation Platform</span>
                 </div>
-                <div class="font-mono text-[11px] text-slate-400">Pure Rust SSR &bull; Axum 0.7 &bull; Tokio</div>
+                <div class="text-[11px] text-slate-500">v0.1.0</div>
             </footer>
         </div>
     </div>

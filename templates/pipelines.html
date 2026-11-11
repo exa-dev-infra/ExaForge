@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline Runs & Execution History - ExaForge{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#1e2430]">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="text-xs font-mono uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">Audit Trail</span>
+                <span class="text-slate-500">•</span>
+                <span class="text-xs text-slate-400 font-mono">Total Runs: {{ total_count }}</span>
+            </div>
+            <h1 class="text-2xl font-black text-white tracking-tight mt-1 flex items-center space-x-3">
+                <span>Pipeline Runs & History</span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">
+                Historical log of all triggered workflows, branch executions, CI/CD jobs, and execution outcomes across projects.
+            </p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="/projects"
+                class="px-3.5 py-1.5 bg-[#161b22] hover:bg-[#21262d] text-slate-200 border border-[#30363d] rounded-lg text-xs font-medium transition flex items-center space-x-1.5">
+                <span>📁 Projects & Stacks</span>
+            </a>
+            <button onclick="window.location.reload()"
+                class="px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                <span>↻ Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-[#12161f] border border-[#1e2430] p-4 rounded-xl shadow-lg">
+        <form method="GET" action="/pipelines" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end">
+            <!-- Project Filter -->
+            <div>
+                <label class="block text-slate-400 font-medium mb-1 uppercase tracking-wider text-[10px]">Project</label>
+                <select name="project_id" class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-orange-500">
+                    <option value="">All Projects</option>
+                    {% for pr in projects %}
+                    <option value="{{ pr.id }}" {% if self.is_selected_project(pr.id) %}selected{% endif %}>
+                        {{ pr.name }} ({{ pr.slug }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Service Filter -->
+            <div>
+                <label class="block text-slate-400 font-medium mb-1 uppercase tracking-wider text-[10px]">Service / Stack</label>
+                <select name="service_id" class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-orange-500">
+                    <option value="">All Services</option>
+                    {% for s in services %}
+                    <option value="{{ s.id }}" {% if self.is_selected_service(s.id) %}selected{% endif %}>
+                        {{ s.name }} ({{ s.slug }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-slate-400 font-medium mb-1 uppercase tracking-wider text-[10px]">Execution Status</label>
+                <select name="status" class="w-full bg-[#0a0d13] border border-[#1e2430] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-orange-500">
+                    <option value="all">All Statuses</option>
+                    <option value="running" {% if self.is_selected_status("running") %}selected{% endif %}>Running</option>
+                    <option value="success" {% if self.is_selected_status("success") %}selected{% endif %}>Success</option>
+                    <option value="failed" {% if self.is_selected_status("failed") %}selected{% endif %}>Failed</option>
+                    <option value="cancelled" {% if self.is_selected_status("cancelled") %}selected{% endif %}>Cancelled</option>
+                    <option value="pending" {% if self.is_selected_status("pending") %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center space-x-2">
+                <button type="submit"
+                    class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition shadow-md shadow-orange-600/20 text-center">
+                    Apply Filter
+                </button>
+                <a href="/pipelines"
+                    class="px-3 py-2 bg-[#1e2430] hover:bg-[#2b3547] text-slate-300 font-medium rounded-lg transition text-center">
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- History Table -->
+    <div class="bg-[#12161f] border border-[#1e2430] rounded-xl overflow-hidden shadow-xl">
+        <div class="px-6 py-3.5 border-b border-[#1e2430] bg-[#0e121a] flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Execution Runs</h2>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">Showing Page {{ current_page }} of {{ total_pages }}</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+                <thead class="bg-[#0a0d13] text-xs uppercase text-slate-400 border-b border-[#1e2430]">
+                    <tr>
+                        <th class="px-5 py-3 font-semibold">Status</th>
+                        <th class="px-5 py-3 font-semibold">Pipeline ID</th>
+                        <th class="px-5 py-3 font-semibold">Project / Service</th>
+                        <th class="px-5 py-3 font-semibold">Ref / Branch</th>
+                        <th class="px-5 py-3 font-semibold">Commit</th>
+                        <th class="px-5 py-3 font-semibold">Trigger</th>
+                        <th class="px-5 py-3 font-semibold">Created / Started</th>
+                        <th class="px-5 py-3 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#1e2430]">
+                    {% if pipelines.is_empty() %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-slate-500">
+                            <div class="max-w-sm mx-auto space-y-2">
+                                <div class="text-2xl">📜</div>
+                                <div class="font-medium text-slate-400">No pipeline executions found</div>
+                                <p class="text-xs text-slate-500">Try loosening your filter criteria or trigger a new pipeline run from Projects.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    {% for p in pipelines %}
+                    <tr class="hover:bg-[#161c28] transition-colors">
+                        <!-- Status Badge -->
+                        <td class="px-5 py-3.5">
+                            {% if p.status == "running" %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                                Running
+                            </span>
+                            {% else if p.status == "success" %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                Success
+                            </span>
+                            {% else if p.status == "failed" %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                Failed
+                            </span>
+                            {% else if p.status == "cancelled" %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
+                                Cancelled
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                                {{ p.status }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Pipeline ID -->
+                        <td class="px-5 py-3.5 font-mono text-xs text-orange-400">
+                            <a href="/pipelines/{{ p.id }}" class="hover:underline flex items-center space-x-1 group" title="View Pipeline Details">
+                                <span class="max-w-[130px] truncate">{{ p.id }}</span>
+                                <span class="opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
+                            </a>
+                        </td>
+
+                        <!-- Project & Service -->
+                        <td class="px-5 py-3.5">
+                            <div class="flex flex-col space-y-0.5">
+                                <span class="font-medium text-xs text-white">{{ p.service_name }}</span>
+                                <span class="text-[11px] text-slate-400 font-mono">{{ p.project_name }}</span>
+                            </div>
+                        </td>
+
+                        <!-- Git Ref / Branch -->
+                        <td class="px-5 py-3.5 font-mono text-xs">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-[#1e2430] text-slate-200 border border-[#2b3547]">
+                                <svg class="w-3 h-3 mr-1 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                                </svg>
+                                {{ p.git_ref }}
+                            </span>
+                        </td>
+
+                        <!-- Commit SHA & Message -->
+                        <td class="px-5 py-3.5">
+                            <div class="flex flex-col space-y-0.5 max-w-xs">
+                                <span class="font-mono text-xs text-slate-300 truncate" title="{{ p.git_commit_sha }}">{{ p.git_commit_sha }}</span>
+                                {% if let Some(msg) = p.git_commit_message %}
+                                <span class="text-[11px] text-slate-400 truncate" title="{{ msg }}">{{ msg }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Trigger Type -->
+                        <td class="px-5 py-3.5">
+                            <span class="text-xs capitalize px-2 py-0.5 rounded bg-slate-800/80 text-slate-300 font-mono text-[11px] border border-slate-700/50">
+                                {{ p.trigger_type }}
+                            </span>
+                        </td>
+
+                        <!-- Timestamps -->
+                        <td class="px-5 py-3.5 text-xs text-slate-400 font-mono">
+                            <div>{{ p.created_at.format("%Y-%m-%d %H:%M:%S") }}</div>
+                        </td>
+
+                        <!-- Action Button -->
+                        <td class="px-5 py-3.5 text-right">
+                            <a href="/pipelines/{{ p.id }}"
+                                class="inline-flex items-center px-3 py-1 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 hover:text-orange-200 border border-orange-500/30 rounded-lg text-xs font-medium transition shadow-sm">
+                                <span>View Logs</span>
+                                <span class="ml-1 text-xs">⚡</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="px-6 py-4 bg-[#0e121a] border-t border-[#1e2430] flex items-center justify-between text-xs">
+            <div class="text-slate-400">
+                Page <span class="font-bold text-white">{{ current_page }}</span> of <span class="font-bold text-white">{{ total_pages }}</span>
+                <span class="ml-2 text-slate-500">({{ total_count }} total executions)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                {% if current_page > 1 %}
+                <a href="/pipelines?page={{ current_page - 1 }}{% if let Some(pr) = current_project_id %}&project_id={{ pr }}{% endif %}{% if let Some(s) = current_service_id %}&service_id={{ s }}{% endif %}{% if let Some(st) = current_status %}&status={{ st }}{% endif %}"
+                    class="px-3 py-1.5 bg-[#161b22] hover:bg-[#21262d] text-slate-200 border border-[#30363d] rounded-lg transition">
+                    &larr; Previous
+                </a>
+                {% endif %}
+
+                {% if current_page < total_pages %}
+                <a href="/pipelines?page={{ current_page + 1 }}{% if let Some(pr) = current_project_id %}&project_id={{ pr }}{% endif %}{% if let Some(s) = current_service_id %}&service_id={{ s }}{% endif %}{% if let Some(st) = current_status %}&status={{ st }}{% endif %}"
+                    class="px-3 py-1.5 bg-[#161b22] hover:bg-[#21262d] text-slate-200 border border-[#30363d] rounded-lg transition">
+                    Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

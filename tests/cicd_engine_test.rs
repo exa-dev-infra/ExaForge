@@ -272,3 +272,45 @@ fn test_exacode_studio_pipeline_parsing() {
     assert_eq!(sorted.last().unwrap(), "deploy_k8s");
 }
 
+#[test]
+fn test_pipeline_history_query_and_dto() {
+    use chrono::Utc;
+    use exaforge::modules::pipelines::dto::{PipelineHistoryItem, PipelineHistoryQuery};
+
+    let query_json = r#"{
+        "project_id": "00000000-0000-0000-0000-000000000001",
+        "service_id": "00000000-0000-0000-0000-000000000002",
+        "status": "success",
+        "limit": 25,
+        "offset": 50
+    }"#;
+    let query: PipelineHistoryQuery = serde_json::from_str(query_json).expect("Deserialize query");
+    assert_eq!(query.status.as_deref(), Some("success"));
+    assert_eq!(query.limit, Some(25));
+    assert_eq!(query.offset, Some(50));
+
+    let now = Utc::now();
+    let item = PipelineHistoryItem {
+        id: Uuid::new_v4(),
+        project_id: Uuid::new_v4(),
+        project_name: "ExaForge Infra".to_string(),
+        project_slug: "exaforge-infra".to_string(),
+        service_id: Uuid::new_v4(),
+        service_name: "Controller API".to_string(),
+        service_slug: "controller-api".to_string(),
+        trigger_type: "manual".to_string(),
+        git_ref: "main".to_string(),
+        git_commit_sha: "1234567890abcdef".to_string(),
+        git_commit_message: Some("feat: add execution history".to_string()),
+        status: "success".to_string(),
+        started_at: Some(now),
+        finished_at: Some(now),
+        created_at: now,
+    };
+
+    let item_json = serde_json::to_string(&item).expect("Serialize PipelineHistoryItem");
+    assert!(item_json.contains("ExaForge Infra"));
+    assert!(item_json.contains("Controller API"));
+    assert!(item_json.contains("feat: add execution history"));
+}
+

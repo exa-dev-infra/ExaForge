@@ -1,9 +1,10 @@
 use askama::Template;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     routing::get,
     Router,
 };
+use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -11,7 +12,7 @@ use crate::{
     modules::{
         agents::{dto::AgentRecord, service::AgentService},
         pipelines::{
-            dto::{JobRecord, PipelineRecord},
+            dto::{JobRecord, PipelineHistoryItem, PipelineRecord},
             service::PipelineService,
         },
         projects::{
@@ -47,6 +48,42 @@ pub struct ProjectsTemplate {
 pub struct PipelineDetailTemplate {
     pub pipeline: PipelineRecord,
     pub jobs: Vec<JobRecord>,
+}
+
+#[derive(Template)]
+#[template(path = "pipelines.html")]
+pub struct PipelinesHistoryTemplate {
+    pub pipelines: Vec<PipelineHistoryItem>,
+    pub projects: Vec<ProjectRecord>,
+    pub services: Vec<ServiceRecord>,
+    pub current_status: Option<String>,
+    pub current_project_id: Option<Uuid>,
+    pub current_service_id: Option<Uuid>,
+    pub current_page: u64,
+    pub total_pages: u64,
+    pub total_count: i64,
+}
+
+impl PipelinesHistoryTemplate {
+    pub fn is_selected_project(&self, id: &Uuid) -> bool {
+        self.current_project_id.as_ref() == Some(id)
+    }
+
+    pub fn is_selected_service(&self, id: &Uuid) -> bool {
+        self.current_service_id.as_ref() == Some(id)
+    }
+
+    pub fn is_selected_status(&self, status: &str) -> bool {
+        self.current_status.as_deref() == Some(status)
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct WebPipelinesQuery {
+    pub project_id: Option<Uuid>,
+    pub service_id: Option<Uuid>,
+    pub status: Option<String>,
+    pub page: Option<u64>,
 }
 
 #[derive(Template)]
@@ -121,6 +158,52 @@ pub async fn pipeline_detail_view(
     })
 }
 
+pub async fn pipelines_history_view(
+    State(ctx): State<WebContext>,
+    Query(query): Query<WebPipelinesQuery>,
+) -> Result<PipelinesHistoryTemplate, AppError> {
+    let limit = 20i64;
+    let page = query.page.unwrap_or(1).max(1);
+    let offset = (page - 1) as i64 * limit;
+
+    let clean_status = query.status.as_deref().filter(|s| !s.is_empty() && *s != "all");
+
+    let pipelines = ctx.pipeline_service.list_pipeline_history(
+        query.project_id,
+        query.service_id,
+        clean_status,
+        limit,
+        offset,
+    ).await?;
+
+    let total_count = ctx.pipeline_service.count_pipeline_history(
+        query.project_id,
+        query.service_id,
+        clean_status,
+    ).await?;
+
+    let total_pages = if limit == 0 || total_count == 0 {
+        1
+    } else {
+        (total_count as f64 / limit as f64).ceil() as u64
+    };
+
+    let projects = ctx.project_service.list_projects().await?;
+    let services = ctx.project_service.list_all_services().await?;
+
+    Ok(PipelinesHistoryTemplate {
+        pipelines,
+        projects,
+        services,
+        current_status: clean_status.map(|s| s.to_string()),
+        current_project_id: query.project_id,
+        current_service_id: query.service_id,
+        current_page: page,
+        total_pages,
+        total_count,
+    })
+}
+
 pub async fn agents_view(
     State(ctx): State<WebContext>,
 ) -> Result<AgentsTemplate, AppError> {
@@ -157,6 +240,7 @@ pub fn web_router(ctx: WebContext) -> Router {
     Router::new()
         .route("/", get(dashboard_view))
         .route("/projects", get(projects_view))
+        .route("/pipelines", get(pipelines_history_view))
         .route("/pipelines/:id", get(pipeline_detail_view))
         .route("/agents", get(agents_view))
         .route("/secrets", get(secrets_view))

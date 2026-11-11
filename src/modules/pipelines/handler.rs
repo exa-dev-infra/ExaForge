@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
 use std::sync::Arc;
@@ -9,12 +9,12 @@ use crate::{
     modules::projects::service::ProjectService,
     pkg::{
         errors::AppError,
-        response::BaseResponse,
+        response::{BaseResponse, PaginatedResponse},
         validation::ValidatedJson,
     },
 };
 use super::{
-    dto::ManualTriggerRequest,
+    dto::{ManualTriggerRequest, PipelineHistoryQuery},
     service::PipelineService,
 };
 
@@ -73,4 +73,55 @@ pub async fn get_job_logs_handler(
 ) -> Result<impl IntoResponse, AppError> {
     let logs = pipeline_service.get_job_logs(id).await?;
     Ok(BaseResponse::success(logs, "Job logs retrieved successfully"))
+}
+
+pub async fn list_pipelines_handler(
+    State((pipeline_service, _)): State<(Arc<PipelineService>, Arc<ProjectService>)>,
+    Query(query): Query<PipelineHistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
+    let offset = query.offset.unwrap_or(0).max(0);
+    let page = (offset / limit) as u64 + 1;
+
+    let items = pipeline_service.list_pipeline_history(
+        query.project_id,
+        query.service_id,
+        query.status.as_deref().filter(|s| !s.is_empty() && *s != "all"),
+        limit,
+        offset,
+    ).await?;
+
+    let total = pipeline_service.count_pipeline_history(
+        query.project_id,
+        query.service_id,
+        query.status.as_deref().filter(|s| !s.is_empty() && *s != "all"),
+    ).await? as u64;
+
+    Ok(PaginatedResponse::new(items, page, limit as u64, total, "Pipelines retrieved successfully"))
+}
+
+pub async fn list_service_pipelines_handler(
+    State((pipeline_service, _)): State<(Arc<PipelineService>, Arc<ProjectService>)>,
+    Path(service_id): Path<Uuid>,
+    Query(query): Query<PipelineHistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
+    let offset = query.offset.unwrap_or(0).max(0);
+    let page = (offset / limit) as u64 + 1;
+
+    let items = pipeline_service.list_pipeline_history(
+        query.project_id,
+        Some(service_id),
+        query.status.as_deref().filter(|s| !s.is_empty() && *s != "all"),
+        limit,
+        offset,
+    ).await?;
+
+    let total = pipeline_service.count_pipeline_history(
+        query.project_id,
+        Some(service_id),
+        query.status.as_deref().filter(|s| !s.is_empty() && *s != "all"),
+    ).await? as u64;
+
+    Ok(PaginatedResponse::new(items, page, limit as u64, total, "Service pipelines retrieved successfully"))
 }

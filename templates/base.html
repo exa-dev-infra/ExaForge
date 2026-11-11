@@ -150,6 +150,15 @@
                             </svg>
                             <span>Projects & Stacks</span>
                         </a>
+                        <a href="/pipelines"
+                            :class="currentPath.startsWith('/pipelines') ? 'bg-orange-500/15 text-orange-300 border-l-2 border-orange-500 font-semibold shadow-sm' : 'text-slate-400 hover:text-white hover:bg-[#151a24]'"
+                            class="flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors group">
+                            <!-- Terminal / Pipeline Runs Icon -->
+                            <svg class="w-4 h-4 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Pipeline Runs</span>
+                        </a>
                     </nav>
                 </div>
 

@@ -59,7 +59,14 @@
     <div class="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-[#30363d] flex items-center justify-between">
             <h2 class="text-base font-semibold text-white">Recent Pipeline Executions</h2>
-            <span class="text-xs text-slate-400">Auto-updating</span>
+            <div class="flex items-center space-x-3 text-xs">
+                <span class="text-slate-400">Auto-updating</span>
+                <span class="text-slate-600">•</span>
+                <a href="/pipelines" class="text-orange-400 hover:text-orange-300 font-medium hover:underline flex items-center space-x-1">
+                    <span>View All History</span>
+                    <span>&rarr;</span>
+                </a>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-slate-300">

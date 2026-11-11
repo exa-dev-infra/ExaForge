@@ -66,3 +66,31 @@ pub struct PipelineDetailResponse {
     pub jobs: Vec<JobRecord>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct PipelineHistoryItem {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub project_name: String,
+    pub project_slug: String,
+    pub service_id: Uuid,
+    pub service_name: String,
+    pub service_slug: String,
+    pub trigger_type: String,
+    pub git_ref: String,
+    pub git_commit_sha: String,
+    pub git_commit_message: Option<String>,
+    pub status: String,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct PipelineHistoryQuery {
+    pub project_id: Option<Uuid>,
+    pub service_id: Option<Uuid>,
+    pub status: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+

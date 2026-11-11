@@ -3,7 +3,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::pkg::errors::AppError;
-use super::dto::{JobLogRecord, JobRecord, PipelineRecord};
+use super::dto::{JobLogRecord, JobRecord, PipelineHistoryItem, PipelineRecord};
 
 #[async_trait]
 pub trait PipelineRepository: Send + Sync {
@@ -25,6 +25,22 @@ pub trait PipelineRepository: Send + Sync {
     async fn find_pipeline_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Option<PipelineRecord>, AppError>;
     async fn list_pipelines_by_service(&self, pool: &PgPool, service_id: Uuid) -> Result<Vec<PipelineRecord>, AppError>;
     async fn list_recent_pipelines(&self, pool: &PgPool, limit: i64) -> Result<Vec<PipelineRecord>, AppError>;
+    async fn list_pipeline_history(
+        &self,
+        pool: &PgPool,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<PipelineHistoryItem>, AppError>;
+    async fn count_pipeline_history(
+        &self,
+        pool: &PgPool,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+    ) -> Result<i64, AppError>;
 
     async fn find_running_in_concurrency_group(
         &self,
@@ -150,6 +166,81 @@ impl PipelineRepository for PostgresPipelineRepository {
         .map_err(|e| AppError::database(format!("Failed to list recent pipelines: {}", e)))?;
 
         Ok(records)
+    }
+
+    async fn list_pipeline_history(
+        &self,
+        pool: &PgPool,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<PipelineHistoryItem>, AppError> {
+        let rows = sqlx::query_as::<_, PipelineHistoryItem>(
+            r#"
+            SELECT 
+                p.id,
+                p.project_id,
+                pr.name as project_name,
+                pr.slug as project_slug,
+                p.service_id,
+                s.name as service_name,
+                s.slug as service_slug,
+                p.trigger_type,
+                p.git_ref,
+                p.git_commit_sha,
+                p.git_commit_message,
+                p.status,
+                p.started_at,
+                p.finished_at,
+                p.created_at
+            FROM pipelines p
+            JOIN projects pr ON pr.id = p.project_id
+            JOIN services s ON s.id = p.service_id
+            WHERE ($1::uuid IS NULL OR p.project_id = $1)
+              AND ($2::uuid IS NULL OR p.service_id = $2)
+              AND ($3::text IS NULL OR p.status = $3)
+            ORDER BY p.created_at DESC
+            LIMIT $4 OFFSET $5
+            "#
+        )
+        .bind(project_id)
+        .bind(service_id)
+        .bind(status)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::database(format!("Failed to list pipeline history: {}", e)))?;
+
+        Ok(rows)
+    }
+
+    async fn count_pipeline_history(
+        &self,
+        pool: &PgPool,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+    ) -> Result<i64, AppError> {
+        let count: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*)
+            FROM pipelines p
+            WHERE ($1::uuid IS NULL OR p.project_id = $1)
+              AND ($2::uuid IS NULL OR p.service_id = $2)
+              AND ($3::text IS NULL OR p.status = $3)
+            "#
+        )
+        .bind(project_id)
+        .bind(service_id)
+        .bind(status)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::database(format!("Failed to count pipeline history: {}", e)))?;
+
+        Ok(count.0)
     }
 
     async fn find_running_in_concurrency_group(

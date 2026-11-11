@@ -19,7 +19,7 @@ use crate::{
     pkg::errors::AppError,
 };
 use super::{
-    dto::{JobRecord, PipelineDetailResponse, PipelineRecord},
+    dto::{JobRecord, PipelineDetailResponse, PipelineHistoryItem, PipelineRecord},
     parser::{interpolate_variables, parse_pipeline_config, PipelineConfig},
     repository::PipelineRepository,
 };
@@ -271,6 +271,26 @@ jobs:
 
     pub async fn list_recent_pipelines(&self, limit: i64) -> Result<Vec<PipelineRecord>, AppError> {
         self.repo.list_recent_pipelines(&self.pool, limit).await
+    }
+
+    pub async fn list_pipeline_history(
+        &self,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<PipelineHistoryItem>, AppError> {
+        self.repo.list_pipeline_history(&self.pool, project_id, service_id, status, limit, offset).await
+    }
+
+    pub async fn count_pipeline_history(
+        &self,
+        project_id: Option<Uuid>,
+        service_id: Option<Uuid>,
+        status: Option<&str>,
+    ) -> Result<i64, AppError> {
+        self.repo.count_pipeline_history(&self.pool, project_id, service_id, status).await
     }
 
     pub async fn get_job_detail(&self, job_id: Uuid) -> Result<JobRecord, AppError> {

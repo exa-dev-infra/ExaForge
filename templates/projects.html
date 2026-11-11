@@ -205,6 +205,33 @@
         navigator.clipboard.writeText(text);
         this.copyStatus = msg || 'Copied!';
         setTimeout(() => { this.copyStatus = ''; }, 2000);
+    },
+
+    serviceHistoryModal: false,
+    historyServiceName: '',
+    historyServiceId: '',
+    historyPipelines: [],
+    historyLoading: false,
+    historyError: '',
+
+    async openServiceHistoryModal(serviceId, serviceName) {
+        this.serviceHistoryModal = true;
+        this.historyServiceId = serviceId;
+        this.historyServiceName = serviceName;
+        this.historyPipelines = [];
+        this.historyLoading = true;
+        this.historyError = '';
+
+        try {
+            const res = await fetch(`/api/v1/services/${serviceId}/pipelines?limit=20`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to load execution history');
+            this.historyPipelines = data.data || [];
+        } catch (err) {
+            this.historyError = err.message || 'Failed to load execution history';
+        } finally {
+            this.historyLoading = false;
+        }
     }
 }">
     <!-- Header -->
@@ -312,6 +339,11 @@
                                     class="text-slate-400 hover:text-cyan-300 transition text-[11px] flex items-center space-x-1"
                                     title="View Webhook URLs and Secret">
                                     <span>🔗 Webhook</span>
+                                </button>
+                                <button type="button" @click="openServiceHistoryModal('{{ s.id }}', '{{ s.name }}')"
+                                    class="text-slate-400 hover:text-amber-300 transition text-[11px] flex items-center space-x-1"
+                                    title="View Execution History">
+                                    <span>📜 History</span>
                                 </button>
                             </div>
                             <button type="button" @click="triggerRun('{{ p.slug }}', '{{ s.slug }}', '{{ s.default_branch }}')"
@@ -570,6 +602,106 @@
             <div class="flex justify-end pt-2 border-t border-[#21262d]">
                 <button type="button" @click="serviceWebhookModal = false"
                     class="px-4 py-2 bg-[#21262d] hover:bg-[#30363d] text-white text-xs font-medium rounded-lg transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Service Execution Runs History -->
+    <div x-show="serviceHistoryModal" x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+        <div class="bg-[#12161f] border border-[#1e2430] w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            @click.away="serviceHistoryModal = false">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-[#1e2430] bg-[#0e121a] flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl">📜</span>
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <span>Pipeline History &mdash;</span>
+                            <span class="text-orange-400 font-mono" x-text="historyServiceName"></span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Showing recent 20 pipeline execution runs for this service.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a :href="`/pipelines?service_id=${historyServiceId}`"
+                        class="text-xs text-orange-400 hover:text-orange-300 font-medium hover:underline flex items-center space-x-1">
+                        <span>View All in History</span>
+                        <span>&rarr;</span>
+                    </a>
+                    <button type="button" @click="serviceHistoryModal = false" class="text-slate-400 hover:text-white text-base px-2">✕</button>
+                </div>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <!-- Loading State -->
+                <div x-show="historyLoading" class="py-12 text-center text-slate-400 text-sm space-y-2">
+                    <div class="inline-block w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div>Loading execution runs...</div>
+                </div>
+
+                <!-- Error State -->
+                <div x-show="!historyLoading && historyError" class="p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400">
+                    <span x-text="historyError"></span>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="!historyLoading && !historyError && historyPipelines.length === 0" class="py-12 text-center text-slate-500 text-xs space-y-2">
+                    <div class="text-3xl">🚀</div>
+                    <div class="font-semibold text-slate-400">No pipeline executions yet</div>
+                    <p>Trigger a run manually or push to the repository to see execution history.</p>
+                </div>
+
+                <!-- Executions List -->
+                <div x-show="!historyLoading && !historyError && historyPipelines.length > 0" class="divide-y divide-[#1e2430] border border-[#1e2430] rounded-xl overflow-hidden bg-[#0a0d13]">
+                    <template x-for="p in historyPipelines" :key="p.id">
+                        <div class="p-4 hover:bg-[#161c28] transition flex items-center justify-between gap-4">
+                            <div class="flex items-center space-x-3.5 min-w-0">
+                                <!-- Status Badge -->
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider shrink-0 flex items-center"
+                                    :class="{
+                                        'bg-amber-500/10 text-amber-400 border border-amber-500/30': p.status === 'running',
+                                        'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30': p.status === 'success',
+                                        'bg-rose-500/10 text-rose-400 border border-rose-500/30': p.status === 'failed',
+                                        'bg-slate-500/10 text-slate-400 border border-slate-500/30': p.status === 'cancelled' || p.status === 'pending'
+                                    }">
+                                    <span x-show="p.status === 'running'" class="w-1.5 h-1.5 mr-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                                    <span x-text="p.status"></span>
+                                </span>
+
+                                <!-- Branch & Commit -->
+                                <div class="min-w-0">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="font-mono text-xs text-white font-medium bg-[#1e2430] px-1.5 py-0.5 rounded border border-[#2b3547]" x-text="p.git_ref"></span>
+                                        <span class="font-mono text-xs text-slate-400" x-text="p.git_commit_sha ? p.git_commit_sha.substring(0, 8) : 'HEAD'"></span>
+                                        <span class="text-[11px] text-slate-500 uppercase px-1.5 py-0.5 rounded bg-slate-800" x-text="p.trigger_type"></span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 truncate mt-0.5" x-text="p.git_commit_message || 'Manual execution / Webhook'"></p>
+                                </div>
+                            </div>
+
+                            <!-- Right actions & time -->
+                            <div class="flex items-center space-x-4 shrink-0">
+                                <span class="text-[11px] text-slate-500 font-mono" x-text="new Date(p.created_at).toLocaleString()"></span>
+                                <a :href="`/pipelines/${p.id}`"
+                                    class="px-3 py-1.5 bg-orange-600/15 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                                    <span>View Logs</span>
+                                    <span>⚡</span>
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 border-t border-[#1e2430] bg-[#0e121a] flex justify-between items-center text-xs">
+                <span class="text-slate-500">Live Controller sync</span>
+                <button type="button" @click="serviceHistoryModal = false"
+                    class="px-4 py-1.5 bg-[#1e2430] hover:bg-[#2b3547] text-white rounded-lg transition font-medium">
                     Close
                 </button>
             </div>
